@@ -1,16 +1,20 @@
 const { sendEvent } = require('../utils/eventSender');
+const { generateScopedId, isValidNamespace } = require('../utils/idNaming');
 
 exports.createUser = async (req, res) => {
   try {
     const { username, email, role } = req.body;
-    const accountId = req.accountId;
     const actor = req.user.id;
+
+    const accountId = req.accountId;
 
     if (!username) return res.status(400).json({ error: 'Missing username' });
 
+    const userId = await generateScopedId('user', accountId, 'account', username);
+    
     const result = await sendEvent({
       type: 'user.create',
-      data: { username, email, role },
+      data: { userId, username, email, role },
       account: accountId,
       actor
     });

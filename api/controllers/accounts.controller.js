@@ -1,7 +1,7 @@
 const { ethers } = require('ethers');
 const bcrypt = require('bcrypt');
 const { sendEvent } = require('../utils/eventSender');
-const { generateId } = require('../utils/idNaming');
+const { isValidAddressFormat, isValidNamespace } = require('../utils/idNaming');
 
 
 console.log('✅ accounts.controller.js loaded');
@@ -10,11 +10,12 @@ exports.createAccount = async (req, res) => {
   console.log('🟡 Entered createAccount controller');
   console.log('📦 req.body:', req.body);
   try {
-    const { email, password, address, signature, timestamp } = req.body;
+    const { namespace, email, password, address, signature, timestamp } = req.body;
 
-    if (!email || !password || !address || !signature || !timestamp) {
+    if (!namespace || !email || !password || !address || !signature || !timestamp) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
+
 
     // 🕒 Validasi timestamp tidak terlalu jauh (5 menit window)
     const now = Math.floor(Date.now() / 1000);
@@ -22,32 +23,71 @@ exports.createAccount = async (req, res) => {
       return res.status(403).json({ error: 'Timestamp too old or too far ahead' });
     }
 
+    if (!isValidNamespace(namespace)) {
+      return res.status(400).json({ error: 'Invalid namespace format (3-16 lowercase chars)' });
+    }
+
+    // ✅ Validasi address langsung
+    const isValid = isValidAddressFormat(address);
+    if (!isValid) {
+      return res.status(400).json({ error: 'Invalid address format or ID' });
+    }
+    const accountId = `org:${namespace}`;
+
     // 🔐 Verifikasi signature
     const message = `account.create:${email}:${timestamp}`;
     const recovered = ethers.verifyMessage(message, signature);
 
-    if (recovered.toLowerCase() !== address.toLowerCase()) {
+    if (!address.startsWith('0x') || recovered.toLowerCase() !== address.toLowerCase()) {
       return res.status(403).json({ error: 'Signature verification failed' });
     }
 
     const passwordHash = await bcrypt.hash(password, 10);
+    //bukan generateScopedId
+    //const accountId = generateId('org', { email, address }); // one-time hashed
 
-    const accountId = generateId('contract', { description, fields, reducerCode, version });
+    const adminUserId = `usr:${namespace}:admin`;
+    const adminRoleId = `role:${namespace}:admins`;
 
     const result = await sendEvent({
       type: 'account.create',
       data: {
         accountId,
-        email,
         address,
-        passwordHash
+        admin_user: adminUserId
       },
-      account: 'system',
-      actor: address
+      actor: address,
+      account: 'system'
     });
-    res.status(201).json({ message: 'Account creation submitted', 
-        event: result.data });
 
+    // Buat ROLE admin
+    await sendEvent({
+      type: 'role.create',
+      data: {
+        roleId: adminRoleId,
+        roleName: 'admin',
+        permissions: ['*']
+      },
+      actor: address,
+      account: accountId
+    });
+    
+    await sendEvent({
+      type: 'user.create',
+      data: {
+        userId: adminUserId,
+        email,
+        username: 'admin',
+        passwordHash,
+        address,
+        accountId,
+        role: [adminRoleId]
+      },
+      actor: address,
+      account: accountId
+    });
+
+    res.status(201).json({ message: 'Account creation submitted', event: result.data });
   } catch (err) {
     console.error('Create Account Error:', err.message);
     res.status(500).json({ error: 'Failed to create account' });

@@ -1,85 +1,63 @@
 const { sendEvent } = require('../utils/eventSender');
-const { generateId } = require('../utils/idNaming');
 const { findFromGateway } = require('../utils/gatewayQuery');
+const { generateScopedId } = require('../utils/idNaming');
 
-// 1. Buat schema coin
+// POST /coins/create
 exports.createCoin = async (req, res) => {
   try {
-    const { description, fields, reducerCode, version, initialSupply, to } = req.body;
-    const accountId = req.accountId;
+    const { symbol, decimals = 0, totalSupply, description } = req.body;
     const actor = req.user.id;
+    const accountId = req.accountId;
 
-    if (!description || !fields || !reducerCode || !initialSupply || !to) {
-      return res.status(400).json({ error: 'Missing required fields (desc, code, supply, to)' });
+    const coinId = await generateScopedId('coin', accountId, symbol.toLowerCase(), description || '');
+
+    const isValid = await validateId(actor);
+    if (!isValid) return res.status(400).json({ error: 'Invalid creator ID' });
+
+    if (!totalSupply || totalSupply <= 0) {
+      return res.status(400).json({ error: 'Invalid totalSupply' });
     }
 
-    // Validasi account creator jika accountId dicantumkan
-    if (accountId) {
-        const result = await findFromGateway('states', {
-            entityType: 'account',
-            entityId: accountId
-        });
-
-        const accountState = result?.[0];
-        if (!accountState || accountState.creator !== actor) {
-            return res.status(403).json({ error: 'You are not the creator of this account' });
-        }
+    if (!decimals || decimals >= 0) {
+      return res.status(400).json({ error: 'Invalid decimals' });
     }
-    
 
-    const coinId = generateId('coin', { description, fields, reducerCode, version });
-
-    // 1. Submit schema.create
-    const schemaEvent = await sendEvent({
+    const event = await sendEvent({
       type: 'coin.create',
-      data: {
-        coinId,
-        description,
-        fields,
-        reducerCode,
-        version,
-        creator: actor
-      },
-      account: accountId || null,
-      actor
+      data: { coin_id: coinId, symbol, decimals, total_supply: totalSupply, description, creator: actor },
+      actor,
+      account: null
     });
 
-    // 2. Mint initial supply
-    const mintEvent = await sendEvent({
-      type: 'coin.mint',
-      data: {
-        to,
-        amount: initialSupply,
-        coinId
-      },
-      account: accountId || null,
-      actor
-    });
-
-    res.status(201).json({
-      message: 'Coin created with initial mint',
-      coinId,
-      schemaEvent: schemaEvent.data,
-      mintEvent: mintEvent.data
-    });
-
+    res.status(201).json({ message: 'Coin created', event: event.data });
   } catch (err) {
-    console.error('Failed to create coin:', err.message);
-    res.status(500).json({ error: 'Failed to create coin' });
+    console.error('Create coin failed:', err.message);
+    res.status(500).json({ error: 'Create coin failed' });
   }
 };
 
-// 2. Mint coin
+// POST /coins/mint
 exports.mintCoin = async (req, res) => {
   try {
-    const { to, amount, coinId } = req.body;
+    const { coinId, to, amount } = req.body;
     const actor = req.user.id;
 
-    if (!to || !amount || !coinId) {
-      return res.status(400).json({ error: 'Missing "to", "amount", or "coinId"' });
+    if (!coinId || !to || amount == null) {
+      return res.status(400).json({ error: 'Missing coinId, to, or amount' });
     }
 
-    // Ambil state dari coin schema
+    if (!amount || amount <= 0) {
+      return res.status(400).json({ error: 'Invalid amount' });
+    }
+
+    const [coinValid, toValid] = await Promise.all([
+      validateId(coinId),
+      validateId(to)
+    ]);
+
+    if (!coinValid) return res.status(400).json({ error: 'Invalid coin ID' });
+    if (!toValid) return res.status(400).json({ error: 'Invalid recipient ID' });
+
     const result = await findFromGateway('states', {
       entityType: 'coin',
       entityId: coinId
@@ -87,159 +65,125 @@ exports.mintCoin = async (req, res) => {
 
     const coinState = result?.[0];
     if (!coinState || coinState.creator !== actor) {
-      return res.status(403).json({ error: 'Only the creator of this coin can mint' });
+      return res.status(403).json({ error: 'Only coin creator can mint' });
     }
 
     const event = await sendEvent({
       type: 'coin.mint',
-      data: { to, amount, coinId },
+      data: { coin_id: coinId, to, amount },
       actor,
       account: null
     });
 
-    res.status(200).json({ message: 'Coin minted', event: event.data });
+    res.status(200).json({ message: 'Minted successfully', event: event.data });
   } catch (err) {
     console.error('Mint failed:', err.message);
     res.status(500).json({ error: 'Mint failed' });
   }
 };
 
-// 3. Burn coin
+// POST /coins/burn
 exports.burnCoin = async (req, res) => {
   try {
-    const { amount } = req.body;
+    const { coinId, amount } = req.body;
     const actor = req.user.id;
-    const accountId = req.accountId;
 
-    if (!amount) return res.status(400).json({ error: 'Missing "amount"' });
+    if (!coinId || amount == null) {
+      return res.status(400).json({ error: 'Missing coinId or amount' });
+    }
 
-    // 🔍 Cek balance actor dulu via state
+    const coinValid = await validateId(coinId);
+    if (!coinValid) return res.status(400).json({ error: 'Invalid coin ID' });
+
     const result = await findFromGateway('states', {
       entityType: 'coin',
-      entityId: req.body.coinId  // Pastikan coinId disertakan di request
+      entityId: coinId
     });
 
-    const coinState = result?.[0];
-    const currentBalance = coinState?.balances?.[actor] || 0;
-
-    if (currentBalance < amount) {
-      return res.status(400).json({ error: 'Insufficient balance to burn' });
+    const balance = result?.[0]?.holders?.[actor] || 0;
+    if (balance < amount) {
+      return res.status(400).json({ error: 'Insufficient balance' });
     }
 
     const event = await sendEvent({
       type: 'coin.burn',
-      data: { from: actor, amount },
+      data: { coin_id: coinId, amount },
       actor,
-      account: accountId
+      account: null
     });
 
-    res.status(200).json({ message: 'Coin burned', event: event.data });
+    res.status(200).json({ message: 'Burned', event: event.data });
   } catch (err) {
     console.error('Burn failed:', err.message);
     res.status(500).json({ error: 'Burn failed' });
   }
 };
 
-// 4. Transfer coin
+// POST /coins/transfer
 exports.transferCoin = async (req, res) => {
   try {
-    const { to, amount } = req.body;
+    const { coinId, to, amount } = req.body;
     const actor = req.user.id;
-    const accountId = req.accountId;
 
-    if (!to || !amount) return res.status(400).json({ error: 'Missing "to" or "amount"' });
+    if (!coinId || !to || amount == null) {
+      return res.status(400).json({ error: 'Missing coinId, to, or amount' });
+    }
+
+    const [coinValid, toValid] = await Promise.all([
+      validateId(coinId),
+      validateId(to)
+    ]);
+
+    if (!coinValid) return res.status(400).json({ error: 'Invalid coin ID' });
+    if (!toValid) return res.status(400).json({ error: 'Invalid recipient ID' });
 
     const result = await findFromGateway('states', {
       entityType: 'coin',
       entityId: coinId
     });
 
-    const coinState = result?.[0];
-    const balance = coinState?.balances?.[actor] || 0;
-
+    const balance = result?.[0]?.holders?.[actor] || 0;
     if (balance < amount) {
-      return res.status(400).json({ error: 'Insufficient balance to transfer' });
+      return res.status(400).json({ error: 'Insufficient balance' });
     }
 
     const event = await sendEvent({
       type: 'coin.transfer',
-      data: { from: actor, to, amount },
+      data: { coin_id: coinId, from: actor, to, amount },
       actor,
-      account: accountId
+      account: null
     });
 
-    res.status(200).json({ message: 'Transfer successful', event: event.data });
+    res.status(200).json({ message: 'Transferred', event: event.data });
   } catch (err) {
     console.error('Transfer failed:', err.message);
     res.status(500).json({ error: 'Transfer failed' });
   }
 };
 
-// 5. Ambil saldo
-exports.getBalance = async (req, res) => {
-  try {
-    const address = req.params.address;
-    const accountId = req.accountId;
-
-    const result = await sendEvent({
-      type: 'coin.balance',
-      data: { address },
-      actor: req.user.id,
-      account: accountId
-    });
-
-    res.status(200).json({ address, balance: result.data.balance });
-  } catch (err) {
-    console.error('Get balance failed:', err.message);
-    res.status(500).json({ error: 'Get balance failed' });
-  }
-};
-
-// 6. Total supply
-exports.getTotalSupply = async (req, res) => {
-  try {
-    const accountId = req.accountId;
-
-    const result = await sendEvent({
-      type: 'coin.supply',
-      data: {},
-      actor: req.user.id,
-      account: accountId
-    });
-
-    res.status(200).json({ totalSupply: result.data.totalSupply });
-  } catch (err) {
-    console.error('Get supply failed:', err.message);
-    res.status(500).json({ error: 'Get supply failed' });
-  }
-};
-
-// 7. Approve spender
+// POST /coins/approve
 exports.approveSpender = async (req, res) => {
   try {
-    const { spender, amount } = req.body;
+    const { coinId, spender, amount } = req.body;
     const actor = req.user.id;
-    const accountId = req.accountId;
 
-    if (!spender || !amount) return res.status(400).json({ error: 'Missing "spender" or "amount"' });
-
-    const result = await findFromGateway('states', {
-      entityType: 'coin',
-      entityId: coinId
-    });
-
-    const coinState = result?.[0];
-    const balance = coinState?.balances?.[actor] || 0;
-
-    if (balance < amount) {
-      return res.status(400).json({ error: 'Insufficient balance to approve this amount' });
+    if (!coinId || !spender || amount == null) {
+      return res.status(400).json({ error: 'Missing coinId, spender, or amount' });
     }
+
+    const [coinValid, spenderValid] = await Promise.all([
+      validateId(coinId),
+      validateId(spender)
+    ]);
+
+    if (!coinValid) return res.status(400).json({ error: 'Invalid coin ID' });
+    if (!spenderValid) return res.status(400).json({ error: 'Invalid spender ID' });
 
     const event = await sendEvent({
       type: 'coin.approve',
-      data: { owner: actor, spender, amount },
+      data: { coin_id: coinId, owner: actor, spender, amount },
       actor,
-      account: accountId
+      account: null
     });
 
     res.status(200).json({ message: 'Spender approved', event: event.data });
@@ -249,49 +193,50 @@ exports.approveSpender = async (req, res) => {
   }
 };
 
-// 8. Transfer token from an approved account
+// POST /coins/transfer-from
 exports.transferFromCoin = async (req, res) => {
   try {
-    const { from, to, amount } = req.body;
+    const { coinId, from, to, amount } = req.body;
     const actor = req.user.id; // spender
-    const accountId = req.accountId;
 
-    if (!from || !to || !amount) {
-      return res.status(400).json({ error: 'Missing from, to, or amount' });
+    if (!coinId || !from || !to || amount == null) {
+      return res.status(400).json({ error: 'Missing coinId, from, to, or amount' });
     }
+
+    const [coinValid, fromValid, toValid] = await Promise.all([
+      validateId(coinId),
+      validateId(from),
+      validateId(to)
+    ]);
+
+    if (!coinValid) return res.status(400).json({ error: 'Invalid coin ID' });
+    if (!fromValid || !toValid) return res.status(400).json({ error: 'Invalid from/to ID' });
 
     const result = await findFromGateway('states', {
       entityType: 'coin',
       entityId: coinId
     });
 
-    const coinState = result?.[0];
-    const balance = coinState?.balances?.[from] || 0;
-    const allowance = coinState?.allowance?.[from]?.[actor] || 0;
-
-    if (balance < amount) {
-      return res.status(400).json({ error: 'Insufficient balance of owner' });
-    }
-
+    const allowance = result?.[0]?.allowance?.[from]?.[actor] || 0;
     if (allowance < amount) {
-      return res.status(400).json({ error: 'Allowance exceeded for this spender' });
+      return res.status(400).json({ error: 'Insufficient allowance' });
     }
 
     const event = await sendEvent({
       type: 'coin.transferFrom',
-      data: { from, to, amount },
-      actor,             // spender
-      account: accountId
+      data: { coin_id: coinId, from, to, amount },
+      actor,
+      account: null
     });
 
-    res.status(200).json({ message: 'Transfer from approved balance successful', event: event.data });
+    res.status(200).json({ message: 'TransferFrom successful', event: event.data });
   } catch (err) {
     console.error('TransferFrom failed:', err.message);
     res.status(500).json({ error: 'TransferFrom failed' });
   }
 };
 
-// 9. Lihat allowance
+// GET /coins/allowance/:owner/:spender?coinId=...
 exports.getAllowance = async (req, res) => {
   try {
     const { owner, spender } = req.params;
@@ -306,43 +251,86 @@ exports.getAllowance = async (req, res) => {
       entityId: coinId
     });
 
-    const coinState = result?.[0];
-    const allowance = coinState?.allowance?.[owner]?.[spender] || 0;
-
-    res.status(200).json({ owner, spender, allowance });
+    const allowance = result?.[0]?.allowance?.[owner]?.[spender] || 0;
+    res.status(200).json({ coinId, owner, spender, allowance });
   } catch (err) {
     console.error('Get allowance failed:', err.message);
-    res.status(500).json({ error: 'Get allowance failed' });
+    res.status(500).json({ error: 'Failed to get allowance' });
   }
 };
 
-// 10. Get coin metadata by ID
+// GET /coins/:id
 exports.getCoinMetadata = async (req, res) => {
-  const coinId = req.params.id;
   try {
-    const db = require('../db/mongo-client');
-    const schema = await db.collection("schemas").findOne({ _id: coinId });
+    const { id } = req.params;
 
-    if (!schema) return res.status(404).json({ error: "Coin not found" });
-
-    const supplyEvent = await sendEvent({
-      type: 'coin.supply',
-      data: {},
-      actor: req.user.id,
-      account: schema.account || req.accountId
+    const result = await findFromGateway('states', {
+      entityType: 'coin',
+      entityId: id
     });
 
-    res.json({
-      coin_id: coinId,
-      name: schema.data?.fields?.name || "Unknown",
-      symbol: schema.data?.fields?.symbol || "-",
-      decimals: schema.data?.fields?.decimal || 0,
-      totalSupply: supplyEvent.data?.totalSupply || 0,
-      createdBy: schema.actor,
-      createdAt: schema.createdAt
+    const coin = result?.[0];
+    if (!coin) return res.status(404).json({ error: 'Coin not found' });
+
+    const totalSupply = Object.values(coin.holders || {}).reduce((sum, qty) => sum + qty, 0);
+    res.status(200).json({
+      coin_id: id,
+      symbol: coin.symbol,
+      decimals: coin.decimals,
+      description: coin.description || '',
+      total_supply: totalSupply
     });
   } catch (err) {
     console.error('Get coin metadata failed:', err.message);
-    res.status(500).json({ error: 'Internal error' });
+    res.status(500).json({ error: 'Failed to get coin metadata' });
+  }
+};
+
+exports.getBalance = async (req, res) => {
+  try {
+    const { address } = req.params;
+    if (!address) {
+      return res.status(400).json({ error: 'Address is required' });
+    }
+
+    // Ambil semua asset tipe 'coin'
+    const coinStates = await findFromGateway('states', {
+      entityType: 'coin'
+    });
+
+    const balances = coinStates
+      .map(state => {
+        const qty = state.holders?.[address] || 0;
+        return {
+          coin_id: state.entityId,
+          symbol: state.symbol,
+          balance: qty
+        };
+      })
+      .filter(c => c.balance > 0);
+
+    res.status(200).json({ address, balances });
+  } catch (err) {
+    console.error('Get balance failed:', err.message);
+    res.status(500).json({ error: 'Failed to get balance' });
+  }
+};
+
+exports.getTotalSupply = async (req, res) => {
+  try {
+    const coinStates = await findFromGateway('states', {
+      entityType: 'coin'
+    });
+
+    const supplies = coinStates.map(state => ({
+      coin_id: state.entityId,
+      symbol: state.symbol,
+      totalQty: state.totalQty || 0
+    }));
+
+    res.status(200).json({ supplies });
+  } catch (err) {
+    console.error('Get total supply failed:', err.message);
+    res.status(500).json({ error: 'Failed to get total supply' });
   }
 };

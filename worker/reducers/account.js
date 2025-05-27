@@ -1,11 +1,12 @@
-exports.replay = function (events) {
-  if (!events || events.length === 0) return {};
+exports.replay = function (events, baseState = {}) {
+  if (!events || events.length === 0) return baseState;
 
-  const latest = events[events.length - 1];
-  if (!latest?.data) return {};
+  const latest = events.at(-1);
+  if (!latest?.data) return baseState;
 
   return {
-    email: latest.data.email,
-    address: latest.data.address
+    ...baseState,
+    address: latest.data.address,
+    admin_user: latest.data.admin_user // ← optional, jika kamu simpan
   };
 };

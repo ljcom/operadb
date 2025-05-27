@@ -35,9 +35,51 @@ app.post('/insert', async (req, res) => {
 
 // 🛠️ UPDATE
 app.post('/update', async (req, res) => {
-  const { collection, filter, updateDoc, options } = req.body;
-  const result = await mongo.update(collection, filter, updateDoc, options);
-  res.json(result);
+  const { collection, filter, updateDoc } = req.body;
+
+  if (!collection || typeof collection !== 'string') {
+    console.error('❌ [UPDATE] Invalid or missing collection:', collection);
+    return res.status(400).json({ error: 'Missing or invalid collection name' });
+  }
+
+  if (!filter || typeof filter !== 'object' || Array.isArray(filter)) {
+    console.error('❌ [UPDATE] Missing or invalid filter:', filter);
+    return res.status(400).json({ error: 'Missing or invalid filter object' });
+  }
+
+  if (!updateDoc || typeof updateDoc !== 'object') {
+    console.error('❌ [UPDATE] Missing or invalid updateDoc:', updateDoc);
+    return res.status(400).json({ error: 'Missing or invalid updateDoc' });
+  }
+
+  try {
+    const result = await mongo.update(collection, filter, updateDoc);
+    console.log(`✅ [UPDATE] Collection '${collection}' updated`, result);
+    res.json({ success: true, result });
+  } catch (err) {
+    console.error('❌ [UPDATE] Mongo update failed:', err.message);
+    res.status(500).json({ error: 'Mongo update failed', detail: err.message });
+  }
+});
+
+app.post('/cleanup', async (req, res) => {
+  try {
+    const collections = ['events', 'states', 'snapshots'];
+
+    const result = {};
+    for (const col of collections) {
+      const del = await mongo.deleteMany(col, {});
+      result[col] = del.deletedCount;
+    }
+
+    res.json({
+      message: 'Full MongoDB cleanup completed',
+      deleted: result
+    });
+  } catch (err) {
+    console.error('Cleanup error:', err.message);
+    res.status(500).json({ error: 'Cleanup failed' });
+  }
 });
 
 // ✅ Export app agar bisa dijalankan dari server.js

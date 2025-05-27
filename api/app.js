@@ -26,28 +26,29 @@ module.exports = function () {
   const accountRoutes = require('./routes/accounts.route');
   const userRoutes = require('./routes/users.route');
   const schemaRoutes = require('./routes/schemas.route');
+  const roleRoutes = require('./routes/roles.route');
   const authRoutes = require('./routes/auth.route');
   const stateRoutes = require('./routes/states.route');
   const coinRoutes = require('./routes/coins.route');
   const assetRoutes = require('./routes/assets.route');
   const dataRoutes = require('./routes/data.route');
   const contractRoutes = require('./routes/contracts.route');
-
   
   console.log('authMiddleware:', typeof authMiddleware); // harus "function"
   console.log('userRoutes:', typeof userRoutes);
 
   // Routes
+  app.use('/accounts', accountRoutes);
+
   app.use('/events', [authMiddleware, accountResolver], eventRoutes);
   app.use('/schemas', [authMiddleware, accountResolver], schemaRoutes);
-  app.use('/users', authMiddleware, userRoutes);
+  app.use('/roles', [authMiddleware, accountResolver], roleRoutes);
+  app.use('/users', [authMiddleware, accountResolver], userRoutes);
   
-
-  app.use('/accounts', accountRoutes);
-  app.use('/coins', verifySignature, coinRoutes);
-  app.use('/assets', verifySignature, assetRoutes);
-  app.use('/data', verifySignature, dataRoutes);
-  app.use('/contracts',contractRoutes);
+  app.use('/coins', [authMiddleware, accountResolver], coinRoutes);
+  app.use('/assets', [authMiddleware, accountResolver], assetRoutes);
+  app.use('/data', [authMiddleware, accountResolver], dataRoutes);
+  app.use('/contracts', [authMiddleware, accountResolver], contractRoutes);
 
   console.log('✅ /accounts routes registered');
   app.use('/login', authRoutes);

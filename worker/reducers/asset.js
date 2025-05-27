@@ -1,29 +1,48 @@
 exports.replay = function (events) {
   const state = {
-    holders: {},  // { asset_id: { address: qty } }
-    metadata: {}  // asset_id -> metadata
+    assetId: null,
+    creator: null,
+    holders: {},   // address → qty
+    metadata: {},  // optional field
+    totalQty: 0
   };
 
   for (const event of events) {
     const { type, data, actor } = event;
-    const { asset_id } = data;
 
     switch (type) {
       case 'asset.mint': {
-        const { to, qty, metadata } = data;
-        state.holders[asset_id] = state.holders[asset_id] || {};
-        state.holders[asset_id][to] = (state.holders[asset_id][to] || 0) + qty;
-        state.metadata[asset_id] = metadata || {};
+        const { asset_id, to, qty, metadata } = data;
+
+
+        if (!state.assetId) {
+          state.assetId = asset_id;
+          state.creator = actor;
+        }
+        if (!qty || qty < 0) return state;
+
+        const target = to || actor; // fallback ke actor jika to tidak diberikan
+        state.holders[target] = (state.holders[target] || 0) + qty;
+        
+        state.totalQty += qty;
+
+        if (metadata) {
+          state.metadata = metadata;
+        }
         break;
       }
 
       case 'asset.burn': {
         const { qty } = data;
         const from = actor;
-        if (state.holders[asset_id]?.[from] >= qty) {
-          state.holders[asset_id][from] -= qty;
-          if (state.holders[asset_id][from] === 0) {
-            delete state.holders[asset_id][from];
+
+        if (!qty || qty <= 0) break; // abaikan event burn tidak valid
+
+        if ((state.holders[from] || 0) >= qty) {
+          state.holders[from] -= qty;
+          state.totalQty -= qty;
+          if (state.holders[from] === 0) {
+            delete state.holders[from];
           }
         }
         break;
@@ -31,18 +50,24 @@ exports.replay = function (events) {
 
       case 'asset.transfer': {
         const { from, to, qty } = data;
-        if (state.holders[asset_id]?.[from] >= qty) {
-          state.holders[asset_id][from] -= qty;
-          if (state.holders[asset_id][from] === 0) {
-            delete state.holders[asset_id][from];
+
+        if (!qty || qty <= 0) break; // abaikan event burn tidak valid
+
+        if ((state.holders[from] || 0) >= qty) {
+          state.holders[from] -= qty;
+          if (state.holders[from] === 0) {
+            delete state.holders[from];
           }
-          state.holders[asset_id][to] = (state.holders[asset_id][to] || 0) + qty;
+          
+          state.holders[to] = (state.holders[to] || 0) + qty;
         }
         break;
       }
 
       case 'asset.metadata': {
-        state.metadata[asset_id] = data.metadata;
+        if (metadata && Object.keys(state.metadata).length === 0) {
+        state.metadata = metadata;
+        }
         break;
       }
     }
