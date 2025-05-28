@@ -42,4 +42,6 @@ async function runReplay() {
   } catch (err) {
     console.error('❌ Worker replay error:', err.message);
   }
+  
+  setInterval(runReplay, 5000); // cek event baru setiap 5 detik
 }

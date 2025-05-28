@@ -13,7 +13,7 @@ exports.replay = function (events) {
     const { type, data, actor } = event;
 
     if (type === 'data.issue') {
-      state.dataId = data.data_id;
+      state.dataId = data.dataId;
       state.owner = data.owner;
       state.type = data.type || ['VerifiableCredential'];
       state.visibility = data.visibility || 'private';
@@ -21,8 +21,8 @@ exports.replay = function (events) {
       state.datatype = data.datatype || {};
       state.issuer = actor;
     } else if (type === 'data.revoke') {
-        const { data_id } = data;
-        const state = getOrInit(data_id);
+        const { dataId } = data;
+        const state = getOrInit(dataId);
         state.revoked = true;
         state.revokeReason = data.reason || null;
         state.revokedAt = timestamp;

@@ -24,7 +24,10 @@ async function connect() {
 module.exports = {
   find: async (col, query) => (await connect()).collection(col).find(query).toArray(),
   insert: async (col, doc) => (await connect()).collection(col).insertOne(doc),
-  update: async (col, filter, updateDoc) => (await connect()).collection(col).updateOne(filter, updateDoc),
+  
+  update: async (col, filter, updateDoc, options = {}) =>
+  (await connect()).collection(col).updateOne(filter, updateDoc, options),
+  
   deleteMany: async (col, filter) => (await connect()).collection(col).deleteMany(filter),
   cleanupAll: async () => {
     const db = await connect();

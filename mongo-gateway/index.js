@@ -35,7 +35,7 @@ app.post('/insert', async (req, res) => {
 
 // 🛠️ UPDATE
 app.post('/update', async (req, res) => {
-  const { collection, filter, updateDoc } = req.body;
+  const { collection, filter, updateDoc, upsert } = req.body;
 
   if (!collection || typeof collection !== 'string') {
     console.error('❌ [UPDATE] Invalid or missing collection:', collection);
@@ -53,7 +53,7 @@ app.post('/update', async (req, res) => {
   }
 
   try {
-    const result = await mongo.update(collection, filter, updateDoc);
+    const result = await mongo.update(collection, filter, updateDoc, { upsert });
     console.log(`✅ [UPDATE] Collection '${collection}' updated`, result);
     res.json({ success: true, result });
   } catch (err) {

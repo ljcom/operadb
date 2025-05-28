@@ -5,8 +5,8 @@ exports.replay = function (events) {
     if (e.type === 'user.create') {
       const userId = e.data.userId;
       users[userId] = {
-        userId,
-        email:e.data.email,
+        userId: e.data.userId,
+        email: e.data.email,
         username: e.data.username,
         address: e.data.address,
         accountId: e.data.accountId,
@@ -17,5 +17,6 @@ exports.replay = function (events) {
     }
   }
 
-  return { users };
+  //return { users };
+  return users;
 };

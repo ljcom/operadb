@@ -26,6 +26,24 @@ exports.replay = function (events) {
         };
       }
     }
+
+    if (type === 'role.permission.add') {
+        const existing = roleMap[data.roleId];
+        if (existing) {
+            if (!existing.permissions) existing.permissions = [];
+            if (!existing.permissions.includes(data.permission)) {
+            existing.permissions.push(data.permission);
+            }
+        }
+        }
+
+        if (type === 'role.permission.remove') {
+        const existing = roleMap[data.roleId];
+        if (existing) {
+            if (!existing.permissions) existing.permissions = [];
+            existing.permissions = existing.permissions.filter(p => p !== data.permission);
+        }
+        }
   }
 
   return roleMap;

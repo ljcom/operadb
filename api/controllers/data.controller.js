@@ -5,16 +5,16 @@ exports.issueData = async (req, res) => {
   try {
     const actor = req.user.id;
     const accountId = req.accountId;
-    const { asset_id, to } = req.body;
+    const { assetId, to } = req.body;
 
-    if (!asset_id || !to) {
-      return res.status(400).json({ error: 'Missing asset_id or to' });
+    if (!assetId || !to) {
+      return res.status(400).json({ error: 'Missing assetId or to' });
     }
 
     // Ambil asset dari gateway
     const assets = await findFromGateway('states', {
       entityType: 'asset',
-      entityId: asset_id
+      entityId: assetId
     });
     const asset = assets?.[0];
 
@@ -27,10 +27,10 @@ exports.issueData = async (req, res) => {
     }
 
     // Cek apakah sudah pernah di-issue
-    const data_id = 'data:' + asset_id.replace(/^obj:/, '') + ':' + to;
+    const dataId = 'data:' + assetId.replace(/^obj:/, '') + ':' + to;
     const existing = await findFromGateway('states', {
       entityType: 'data',
-      entityId: data_id
+      entityId: dataId
     });
     if (existing?.length) {
       return res.status(409).json({ error: 'Data already issued to this address' });
@@ -40,10 +40,10 @@ exports.issueData = async (req, res) => {
     const result = await sendEvent({
       type: 'data.issue',
       data: {
-        data_id,
+        dataId,
         schemaId: asset.schemaId,
         type: asset.type,
-        source_asset: asset.asset_id,
+        source_asset: asset.assetId,
         owner: to,
         content: asset.metadata
       },
@@ -90,16 +90,16 @@ exports.revokeData = async (req, res) => {
   try {
     const actor = req.user.id;
     const accountId = req.accountId;
-    const { data_id, reason } = req.body;
+    const { dataId, reason } = req.body;
 
-    if (!data_id || !reason) {
-      return res.status(400).json({ error: 'data_id and reason are required' });
+    if (!dataId || !reason) {
+      return res.status(400).json({ error: 'dataId and reason are required' });
     }
 
-    // Pastikan data_id valid dan milik account ini
+    // Pastikan dataId valid dan milik account ini
     const dataRes = await findFromGateway('states', {
       entityType: 'data',
-      entityId: data_id,
+      entityId: dataId,
       account: accountId
     });
 
@@ -115,7 +115,7 @@ exports.revokeData = async (req, res) => {
     const result = await sendEvent({
       type: 'data.revoke',
       data: {
-        data_id,
+        dataId,
         reason
       },
       actor,

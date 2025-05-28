@@ -12,11 +12,11 @@ exports.replay = function (events) {
 
     switch (type) {
       case 'asset.mint': {
-        const { asset_id, to, qty, metadata } = data;
+        const { assetId, to, qty, metadata } = data;
 
 
         if (!state.assetId) {
-          state.assetId = asset_id;
+          state.assetId = assetId;
           state.creator = actor;
         }
         if (!qty || qty < 0) return state;

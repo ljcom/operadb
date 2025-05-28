@@ -34,8 +34,8 @@ exports.mintAsset = async (req, res) => {
       }
     }
 
-    // Generate asset_id
-    const asset_id = await generateScopedId('obj', accountId, type, metadata?.name || actor);
+    // Generate assetId
+    const assetId = await generateScopedId('obj', accountId, type, metadata?.name || actor);
 
     // Validasi berdasarkan asset_mode
     if (!['actor', 'unique', 'commodity'].includes(asset_mode)) {
@@ -63,7 +63,7 @@ exports.mintAsset = async (req, res) => {
     if (asset_mode !== 'actor' && qty === 0) {
         const existing = await findFromGateway('states', {
             entityType: 'asset',
-            entityId: asset_id
+            entityId: assetId
         });
 
         if (existing?.length) {
@@ -83,7 +83,7 @@ exports.mintAsset = async (req, res) => {
     const result = await sendEvent({
       type: 'asset.mint',
       data: {
-        asset_id,
+        assetId,
         schemaId,
         type,
         asset_mode,
@@ -106,14 +106,14 @@ exports.mintAsset = async (req, res) => {
 // 2. Burn asset
 exports.burnAsset = async (req, res) => {
   try {
-    const { asset_id, qty } = req.body;
+    const { assetId, qty } = req.body;
     const actor = req.user.id;
 
-    if (!asset_id) return res.status(400).json({ error: 'Missing asset_id' });
+    if (!assetId) return res.status(400).json({ error: 'Missing assetId' });
 
     const stateRes = await findFromGateway('states', {
       entityType: 'asset',
-      entityId: asset_id
+      entityId: assetId
     });
 
     const state = stateRes?.[0];
@@ -133,7 +133,7 @@ exports.burnAsset = async (req, res) => {
 
     const result = await sendEvent({
       type: 'asset.burn',
-      data: { asset_id, qty: qty || 1 },
+      data: { assetId, qty: qty || 1 },
       actor,
       account: null
     });
@@ -148,10 +148,10 @@ exports.burnAsset = async (req, res) => {
 // 3. Transfer asset
 exports.transferAsset = async (req, res) => {
   try {
-    const { asset_id, to, qty } = req.body;
+    const { assetId, to, qty } = req.body;
     const actor = req.user.id;
 
-    if (!asset_id || !to) return res.status(400).json({ error: 'Missing asset_id or to' });
+    if (!assetId || !to) return res.status(400).json({ error: 'Missing assetId or to' });
 
     const toParsed = parseId(to);
     if (!toParsed || !['user', 'account'].includes(toParsed.type)) {
@@ -160,7 +160,7 @@ exports.transferAsset = async (req, res) => {
 
     const stateRes = await findFromGateway('states', {
       entityType: 'asset',
-      entityId: asset_id
+      entityId: assetId
     });
 
     const state = stateRes?.[0];
@@ -180,7 +180,7 @@ exports.transferAsset = async (req, res) => {
 
     const result = await sendEvent({
       type: 'asset.transfer',
-      data: { asset_id, from: actor, to, qty: qty || 1 },
+      data: { assetId, from: actor, to, qty: qty || 1 },
       actor,
       account: null
     });
@@ -213,7 +213,7 @@ exports.getOwnedAssets = async (req, res) => {
       const qty = state.holders?.[address] || 0;
       if (qty > 0) {
         owned.push({
-          asset_id: state.entityId,
+          assetId: state.entityId,
           qty,
           metadata: state.metadata || {}
         });
@@ -243,7 +243,7 @@ exports.getAssetMetadata = async (req, res) => {
     }
 
     res.status(200).json({
-      asset_id: id,
+      assetId: id,
       metadata: asset.metadata || {},
       holders: asset.holders || {}
     });

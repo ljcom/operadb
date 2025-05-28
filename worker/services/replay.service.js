@@ -18,54 +18,8 @@ const reducers = {
   role: require('../reducers/role')
 };
 
-async function saveSnapshot({ entityType, refId, account, state, lastTimestamp, schemaVersion }) {
-  try {
-    await axios.post(`${GATEWAY}/update`, {
-      collection: 'snapshots',
-      filter: { entityType, refId, account },
-      updateDoc: {
-        $set: {
-          state,
-          lastTimestamp,
-          schemaVersion,
-          updatedAt: new Date()
-        }
-      },
-      upsert: true
-    }, {
-      headers: {
-        Authorization: `Bearer ${SECRET}`
-      }
-    });
-
-    console.log(`✅ Snapshot saved: ${entityType} → ${refId}`);
-  } catch (err) {
-    console.error(`❌ Failed to save snapshot for ${entityType}:${refId}`, err.response?.data || err.message);
-  }
-}
-
-async function loadSnapshot({ entityType, refId, account }) {
-  try {
-    const res = await axios.post(`${GATEWAY}/findOne`, {
-      collection: 'snapshots',
-      query: { entityType, refId, account }
-    }, {
-      headers: { Authorization: `Bearer ${SECRET}` }
-    });
-
-    if (!res.data) {
-      return null; // snapshot not found
-    }
-    return res.data;
-    
-  } catch (err) {
-    console.error('❌ Failed to load snapshot from gateway:', err.message);
-    return null;
-  }
-}
-
 exports.handleEventReplay = async (event, db) => {
-  const { type, data, account } = event;
+  const { type, data, account, timestamp } = event;
   const [entityType] = type.split('.');
 
   const reducer = reducers[entityType];
@@ -73,16 +27,15 @@ exports.handleEventReplay = async (event, db) => {
     console.warn(`⚠️ No reducer registered for ${entityType}, skipping...`);
     return;
   }
-  if (!reducer || !reducer.replay) return;
 
   const refFieldMap = {
     account: 'accountId',
-    user: 'username',
+    user: 'userId',
     schema: 'schemaId',
     coin: 'coinId',
-    asset: 'asset_id',
-    contract: 'contract_id',
-    data: 'data_id',
+    asset: 'assetId',
+    contract: 'contractId',
+    data: 'dataId',
     role: 'roleId'
   };
 
@@ -95,7 +48,13 @@ exports.handleEventReplay = async (event, db) => {
   const snapshot = await loadSnapshot({ entityType, refId, account });
   const lastTimestamp = snapshot?.lastTimestamp;
 
-  // 2. Fetch relevant events (only those after lastTimestamp)
+  // 💡 Lewati jika event timestamp tidak lebih baru
+  if (lastTimestamp && timestamp <= lastTimestamp) {
+    console.log(`⏩ Event ${event._id} dilewati karena timestamp (${timestamp}) <= snapshot (${lastTimestamp})`);
+    return;
+  }
+
+  // 2. Ambil semua event terkait (lebih baru dari snapshot)
   const eventQuery = {
     [`data.${refField}`]: refId,
     type: { $regex: `^${entityType}\\.` },
@@ -114,26 +73,25 @@ exports.handleEventReplay = async (event, db) => {
     headers: { Authorization: `Bearer ${SECRET}` }
   });
 
-  const relatedEvents = relatedEventsRes.data;
-  if (!relatedEvents.length) {
-    console.log('🟡 No new events for:', refId);
-    return;
-  }
+  const events = relatedEventsRes.data || [];
+  const relatedEvents = events.filter(e => {
+    const refVal = e.data?.[refField] || e.data?.refId || e.refId;
+    return e.type.startsWith(entityType) && refVal === refId;
+  });
 
-  // 3. Replay (optionally with base state)
+  // 3. Replay (gunakan base state dari snapshot)
   const baseState = snapshot?.state || {};
   let state = reducer.replay(relatedEvents, baseState);
   const slot = typeof snapshot?.slot === 'number' ? snapshot.slot : 0;
 
-
-  // ⛔ Jangan teruskan jika state tidak valid
   if (!state || typeof state !== 'object' || Array.isArray(state)) {
     console.warn(`⚠️ Invalid state returned for ${entityType}:${refId}, skipping update.`);
     return;
   }
-  const latestTimestamp = relatedEvents.at(-1).timestamp;
 
-  // 4. Save state to states + snapshot
+  const latestTimestamp = relatedEvents.at(-1)?.timestamp || timestamp;
+
+  // 4. Simpan state baru
   try {
     await axios.post(`${GATEWAY}/update`, {
       collection: 'states',
@@ -146,16 +104,18 @@ exports.handleEventReplay = async (event, db) => {
           entityType,
           account,
           updatedAt: new Date()
-        }
-      }
+        },
+      },
+      upsert: true
     }, {
       headers: { Authorization: `Bearer ${SECRET}` }
     });
+    console.log('✅ State update sent to gateway');
   } catch (err) {
     console.error('❌ Failed to update state:', err.message, err.response?.data);
   }
 
-  // 5. Save snapshot
+  // 5. Simpan snapshot baru
   await saveSnapshot({
     entityType,
     refId,

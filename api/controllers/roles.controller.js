@@ -5,11 +5,11 @@ const { generateScopedId, validateId } = require('../utils/idNaming');
 // POST /roles/create
 exports.createRole = async (req, res) => {
   try {
-    const { name, description } = req.body;
+    const { name, description, permissions } = req.body;
     const actor = req.user.id;
     const accountId = req.accountId;
-
-    const roleId = await generateScopedId('role', accountId, 'userrole', name);
+    
+    roleId = await generateScopedId('role', accountId, 'userrole', name);
 
     //check acccount State here
 
@@ -34,9 +34,10 @@ exports.createRole = async (req, res) => {
     const event = await sendEvent({
       type: 'account.role.create',
       data: {
-        role_id: roleId,
-        name,
-        description
+        roleId,
+        roleName,
+        description,
+        permissions
       },
       actor,
       account: accountId
@@ -116,6 +117,30 @@ exports.revokeRole = async (req, res) => {
   }
 };
 
+exports.addPermission = async (req, res) => {
+  const { roleId, permission } = req.body;
+  if (!roleId || !permission) {
+    return res.status(400).json({ error: 'Missing roleId or permission' });
+  }
+
+  await sendEvent({
+    type: 'role.permission.add',
+    data: { roleId, permission },
+    actor: req.address,
+    account: req.account
+  });
+
+  res.json({ success: true });
+};
+
+exports.removePermissionFromRole = async function ({ role_id, permission, actor, account }) {
+  await sendEvent({
+    type: 'role.permission.remove',
+    data: { role_id, permission },
+    actor,
+    account
+  });
+}
 
 // GET /roles
 exports.getRoles = async (req, res) => {

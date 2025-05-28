@@ -33,4 +33,10 @@ app.post('/update', async (req, res) => {
   res.json(result);
 });
 
+// Tambahkan di index.js gateway
+app.post('/replay', async (req, res) => {
+  await runReplay();
+  res.json({ status: 'replay triggered' });
+});
+
 module.exports = app;

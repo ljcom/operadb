@@ -18,4 +18,9 @@ router.post('/assign', controller.assignRole);
 // Revoke user dari role (list atau "*")
 router.post('/revoke', controller.revokeRole);
 
+// Tambahkan permission ke role
+router.post('/permission/add', controller.addPermission);
+
+// Hapus permission dari role
+router.post('/permission/remove', controller.removePermissionFromRole);
 module.exports = router;
