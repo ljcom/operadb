@@ -44,17 +44,35 @@ exports.handleEventReplay = async (event, db) => {
 
   console.log(`▶️ handleEventReplay: ${entityType} → ${refId}`);
 
-  // 1. Load snapshot
-  const snapshot = await loadSnapshot({ entityType, refId, account });
-  const lastTimestamp = snapshot?.lastTimestamp;
+  // 1. Load existing state from 'states' collection
+  let baseState = {};
+  let lastTimestamp = null;
+  let slot = 0;
 
-  // 💡 Lewati jika event timestamp tidak lebih baru
+  try {
+    const res = await axios.post(`${GATEWAY}/findOne`, {
+      collection: 'states',
+      query: { entityType, refId, account }
+    }, {
+      headers: { Authorization: `Bearer ${SECRET}` }
+    });
+
+    if (res.data) {
+      baseState = res.data.state || {};
+      lastTimestamp = res.data.lastTimestamp || null;
+      slot = typeof res.data.slot === 'number' ? res.data.slot : 0;
+    }
+  } catch (err) {
+    console.error('❌ Failed to load state from gateway:', err.message);
+  }
+
+  // 💡 Skip replay if event already covered
   if (lastTimestamp && timestamp <= lastTimestamp) {
-    console.log(`⏩ Event ${event._id} dilewati karena timestamp (${timestamp}) <= snapshot (${lastTimestamp})`);
+    console.log(`⏩ Event ${event._id} dilewati karena timestamp (${timestamp}) <= lastTimestamp (${lastTimestamp})`);
     return;
   }
 
-  // 2. Ambil semua event terkait (lebih baru dari snapshot)
+  // 2. Fetch events newer than lastTimestamp
   const eventQuery = {
     [`data.${refField}`]: refId,
     type: { $regex: `^${entityType}\\.` },
@@ -79,51 +97,42 @@ exports.handleEventReplay = async (event, db) => {
     return e.type.startsWith(entityType) && refVal === refId;
   });
 
-  // 3. Replay (gunakan base state dari snapshot)
-  const baseState = snapshot?.state || {};
-  let state = reducer.replay(relatedEvents, baseState);
-  const slot = typeof snapshot?.slot === 'number' ? snapshot.slot : 0;
+  if (relatedEvents.length === 0) {
+    console.log(`⚠️ Tidak ada event baru untuk ${entityType}:${refId}`);
+    return;
+  }
 
-  if (!state || typeof state !== 'object' || Array.isArray(state)) {
+  // 3. Replay
+  const newState = reducer.replay(relatedEvents, baseState);
+  if (!newState || typeof newState !== 'object' || Array.isArray(newState)) {
     console.warn(`⚠️ Invalid state returned for ${entityType}:${refId}, skipping update.`);
     return;
   }
 
   const latestTimestamp = relatedEvents.at(-1)?.timestamp || timestamp;
 
-  // 4. Simpan state baru
+  // 4. Save updated state to 'states'
   try {
     await axios.post(`${GATEWAY}/update`, {
       collection: 'states',
       filter: { entityType, refId, account },
       updateDoc: {
         $set: {
-          state,
+          state: newState,
           slot,
           refId,
           entityType,
           account,
+          lastTimestamp: latestTimestamp,
           updatedAt: new Date()
-        },
+        }
       },
       upsert: true
     }, {
       headers: { Authorization: `Bearer ${SECRET}` }
     });
-    console.log('✅ State update sent to gateway');
+    console.log(`✅ State saved: ${entityType} → ${refId}`);
   } catch (err) {
     console.error('❌ Failed to update state:', err.message, err.response?.data);
   }
-
-  // 5. Simpan snapshot baru
-  await saveSnapshot({
-    entityType,
-    refId,
-    account,
-    state,
-    lastTimestamp: latestTimestamp,
-    schemaVersion: state.schemaVersion || 1
-  });
-
-  console.log(`✅ State + snapshot saved: ${entityType} → ${refId}`);
 };
