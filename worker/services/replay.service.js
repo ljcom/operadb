@@ -15,7 +15,7 @@ const reducers = {
   asset: require('../reducers/asset'),
   contract: require('../reducers/contract'),
   data: require('../reducers/data'),
-  role: require('../reducers/role')
+  group: require('../reducers/group')
 };
 
 exports.handleEventReplay = async (event, db) => {
@@ -36,7 +36,7 @@ exports.handleEventReplay = async (event, db) => {
     asset: 'assetId',
     contract: 'contractId',
     data: 'dataId',
-    role: 'roleId'
+    group: 'groupId'
   };
 
   const refField = refFieldMap[entityType] || 'refId';

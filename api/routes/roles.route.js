@@ -1,26 +1,26 @@
 const express = require('express');
 const router = express.Router();
-const controller = require('../controllers/roles.controller');
+const controller = require('../controllers/groups.controller');
 //const requireAccountContext = require('../middlewares/requireAccountContext');
 
 // Semua route di bawah ini harus dalam konteks account
 //router.use(requireAccountContext);
 
-// Lihat semua role dalam account
-router.get('/', controller.getRoles);
+// Lihat semua group dalam account
+router.get('/', controller.getGroups);
 
-// Buat role baru (name ≤ 10 char, no space, unique)
-router.post('/create', controller.createRole);
+// Buat group baru (name ≤ 10 char, no space, unique)
+router.post('/create', controller.createGroup);
 
-// Assign satu atau banyak user ke role
-router.post('/assign', controller.assignRole);
+// Assign satu atau banyak user ke group
+router.post('/assign', controller.assignGroup);
 
-// Revoke user dari role (list atau "*")
-router.post('/revoke', controller.revokeRole);
+// Revoke user dari group (list atau "*")
+router.post('/revoke', controller.revokeGroup);
 
-// Tambahkan permission ke role
+// Tambahkan permission ke group
 router.post('/permission/add', controller.addPermission);
 
-// Hapus permission dari role
-router.post('/permission/remove', controller.removePermissionFromRole);
+// Hapus permission dari group
+router.post('/permission/remove', controller.removePermissionFromGroup);
 module.exports = router;

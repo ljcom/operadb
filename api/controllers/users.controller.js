@@ -4,7 +4,7 @@ const bcrypt = require('bcrypt');
 
 async function createUserData(body, actor, accountId, req, res) {
   try{  
-    const { username, email, password, role } = body;
+    const { username, email, password, group } = body;
 
       if (!username || !password) return res.status(400).json({ error: 'Missing username or password' });
 
@@ -18,7 +18,7 @@ async function createUserData(body, actor, accountId, req, res) {
           username,
           email,
           passwordHash,
-          role
+          group
         },
         account: accountId,
         actor

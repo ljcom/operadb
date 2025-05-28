@@ -44,11 +44,11 @@ async function userExists(username, token) {
   }
 }
 
-async function createUser({ username, email, password, role }, token) {
+async function createUser({ username, email, password, group }, token) {
   try {
     console.log(`🆕 Creating user ${username}...`);
     const res = await axios.post(`${BASE_URL}/users`, {
-      username, email, password, role
+      username, email, password, group
     }, {
       headers: { Authorization: `Bearer ${token}` }
     });
@@ -69,7 +69,7 @@ async function createUser({ username, email, password, role }, token) {
       username: USER2_ID,
       email: USER2_EMAIL,
       password: USER2_PASSWORD,
-      role: `role:${ACCOUNT_ID}:admins`
+      group: `group:${ACCOUNT_ID}:admins`
     }, user1Token);
   }
 })();

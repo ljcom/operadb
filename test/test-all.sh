@@ -36,7 +36,7 @@ curl -s -X POST http://localhost:3000/users \
     \"accountId\": \"$ACCOUNT_ID\",
     \"username\": \"admin\",
     \"email\": \"admin@example.com\",
-    \"role\": \"admin\"
+    \"group\": \"admin\"
   }" > /dev/null
 echo "✅ User created."
 

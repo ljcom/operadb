@@ -11,7 +11,7 @@ exports.replay = function (events) {
         address: e.data.address,
         accountId: e.data.accountId,
         passwordHash: e.data.passwordHash,
-        roles: Array.isArray(e.data.role) ? e.data.role : [e.data.role],
+        groups: Array.isArray(e.data.group) ? e.data.group : [e.data.group],
         createdAt: e.timestamp || e.createdAt || new Date()
       };
     }

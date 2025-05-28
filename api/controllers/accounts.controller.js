@@ -29,7 +29,7 @@ exports.createAccount = async (req, res) => {
     }
     const accountId = `org:${namespace}`;
     const adminUserId = `usr:${namespace}:admin`;
-    const adminRoleId = `role:${namespace}:admins`;
+    const adminGroupId = `group:${namespace}:admins`;
     const passwordHash = await bcrypt.hash(password, 10);
 
     // 🔐 Verifikasi signature
@@ -56,9 +56,9 @@ exports.createAccount = async (req, res) => {
         //batchId: `batch:${Date.now()}`,
         prior: [
           {
-            type: 'role.create',
+            type: 'group.create',
             data: {
-              roleId: adminRoleId,
+              groupId: adminGroupId,
               name: 'admin',
               description: 'First User',
               permissions: ['*']
@@ -71,14 +71,14 @@ exports.createAccount = async (req, res) => {
               username: 'admin',
               email,
               passwordHash,
-              role: [adminRoleId]
+              group: [adminGroupId]
             }
           }
         ]        
       });
 
       res.status(201).json({
-        message: 'Account + Role + User submitted in batch',
+        message: 'Account + Group + User submitted in batch',
         event: result
       });
     } catch (err) {

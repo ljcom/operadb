@@ -26,7 +26,7 @@ const prefixMap = {
   account: 'org:',
   schema: 'mod:',
   user: 'user:',  
-  role: 'role:',
+  group: 'group:',
   address: '0x'
 };
 
@@ -128,7 +128,7 @@ async function validateId(id, accountId = null) {
     return result && result.length > 0;
   }
 
-  // 3. Jika usr atau role, accountId harus ada
+  // 3. Jika usr atau group, accountId harus ada
   if (!accountId) return false;
 
   const stateResult = await findFromGateway('states', {
@@ -142,8 +142,8 @@ async function validateId(id, accountId = null) {
   switch (type) {
     case 'usr':
       return state.users && Object.keys(state.users).includes(id);
-    case 'role':
-      return state.roles && Object.keys(state.roles).includes(id);
+    case 'group':
+      return state.groups && Object.keys(state.groups).includes(id);
     case 'obj':
       return state.assets && Object.keys(state.assets).includes(id);
     case 'did':
