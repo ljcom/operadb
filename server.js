@@ -12,8 +12,8 @@ switch (mode) {
     require('./worker/worker');
     break;
   case 'gateway':
-    console.log('🛰️ Starting mongo-gateway...');
-    const app = require('./mongo-gateway/index'); // kamu perlu pastikan file ini ada
+    console.log('🛰️ Starting gateway...');
+    const app = require('./gateway/index'); // kamu perlu pastikan file ini ada
     const PORT = process.env.MONGO_GATEWAY_PORT || 3002;
     app.listen(PORT, () => {
       console.log(`🛰️ Mongo Gateway running on port ${PORT}`);
@@ -28,3 +28,11 @@ switch (mode) {
       `);
     process.exit(1);
 }
+
+process.on('uncaughtException', err => {
+  console.error('❌ Uncaught Exception:', err);
+});
+
+process.on('unhandledRejection', err => {
+  console.error('❌ Unhandled Promise Rejection:', err);
+});
