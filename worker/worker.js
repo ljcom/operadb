@@ -14,6 +14,11 @@ app.use(express.json());
 
 app.get('/', (req, res) => res.send('✅ Worker + Gateway Active'));
 
+app.get('/replay', async (req, res) => {
+  await runReplay();
+  res.json({ status: 'replay triggered' });
+});
+
 app.listen(PORT, () => {
   console.log(`🛰️ Worker+Gateway listening on port ${PORT}`);
   runReplay();
@@ -43,5 +48,7 @@ async function runReplay() {
     console.error('❌ Worker replay error:', err.message);
   }
   
-  setInterval(runReplay, 5000); // cek event baru setiap 5 detik
+  //setInterval(runReplay, 5000); // cek event baru setiap 5 detik
 }
+
+module.exports = { runReplay };

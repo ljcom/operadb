@@ -50,7 +50,7 @@ function isValidNamespace(ns) {
          /^[a-z0-9._-]+$/.test(ns);
 }
 
-async function generateScopedId(prefix, accountId, type, description) {
+async function generateScopedId(prefix, namespace, type, description) {
   const baseSlug = slugify(description);
   let finalSlug = baseSlug;
   let counter = 1;

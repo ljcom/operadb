@@ -57,12 +57,12 @@ exports.createContract = async (req, res) => {
       return res.status(400).json({ error: validation.error });
     }
 
-    const contract_id = await generateScopedId('trx', accountId, type, subject);
+    const contractId = await generateScopedId('trx', accountId, type, subject);
 
     const result = await sendEvent({
       type: 'contract.create',
       data: {
-        contract_id,
+        contractId,
         schema_id,
         contract_type: type,
         subject,
