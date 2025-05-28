@@ -1,21 +1,16 @@
 const { ethers } = require('ethers');
-//const bcrypt = require('bcrypt');
+const bcrypt = require('bcrypt');
 const { sendEvent } = require('../utils/eventSender');
 const { isValidAddressFormat, isValidNamespace } = require('../utils/idNaming');
 
-
-console.log('✅ accounts.controller.js loaded');
-
 exports.createAccount = async (req, res) => {
   console.log('🟡 Entered createAccount controller');
-  console.log('📦 req.body:', req.body);
   
     const { namespace, email, password, address, signature, timestamp } = req.body;
 
     if (!namespace || !email || !password || !address || !signature || !timestamp) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
-
 
     // 🕒 Validasi timestamp tidak terlalu jauh (5 menit window)
     const now = Math.floor(Date.now() / 1000);
@@ -33,6 +28,9 @@ exports.createAccount = async (req, res) => {
       return res.status(400).json({ error: 'Invalid address format or ID' });
     }
     const accountId = `org:${namespace}`;
+    const adminUserId = `usr:${namespace}:admin`;
+    const adminRoleId = `role:${namespace}:admins`;
+    const passwordHash = await bcrypt.hash(password, 10);
 
     // 🔐 Verifikasi signature
     const message = `account.create:${email}:${timestamp}`;
@@ -42,15 +40,11 @@ exports.createAccount = async (req, res) => {
       return res.status(403).json({ error: 'Signature verification failed' });
     }
 
-   //const passwordHash = await bcrypt.hash(password, 10);
     //bukan generateScopedId
     //const accountId = generateId('org', { email, address }); // one-time hashed
 
-    const adminUserId = `usr:${namespace}:admin`;
-    const adminRoleId = `role:${namespace}:admins`;
-    const result=[]
     try {
-      result.push( await sendEvent({
+      const data=await sendEvent({
         type: 'account.create',
         data: {
           accountId,
@@ -58,42 +52,39 @@ exports.createAccount = async (req, res) => {
           admin_user: adminUserId
         },
         actor: address,
-        account: 'system'
-      }));
+        account: 'system',
+        //batchId: `batch:${Date.now()}`,
+        prior: [
+          {
+            type: 'role.create',
+            data: {
+              roleId: adminRoleId,
+              name: 'admin',
+              description: 'First User',
+              permissions: ['*']
+            }
+          },
+          {
+            type: 'user.create',
+            data: {
+              userId: adminUserId,
+              username: 'admin',
+              email,
+              passwordHash,
+              role: [adminRoleId]
+            }
+          }
+        ]        
+      });
 
+      res.status(201).json({
+        message: 'Account + Role + User submitted in batch',
+        event: result
+      });
     } catch (err) {
       console.error('Create Account Error:', err.message);
       res.status(500).json({ error: 'Failed to create account' });
     }
-    // Buat ROLE admin
-    try {
-      const { createRole } = require('./roles.controller');
-      result.push(await createRole({
-        //roleId: adminRoleId,
-        name: 'admin',
-        description: 'First User',
-        permissions: ['*'],
-        actor: address,
-        accountId: accountId
-      }));
-    }
-    catch {}
-
-    try {
-      const { createUser } = require('./users.controller');
-      result.push(await createUser({
-        //userId: adminUserId,
-        username: 'admin',
-        email,
-        password,
-        role: [adminRoleId],
-        //address,
-        actor: address,
-        accountId,
-      }));
-    } 
-    catch {}
-    res.status(201).json({ message: 'Account creation submitted', event: result });
 
 };
 

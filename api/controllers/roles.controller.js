@@ -3,12 +3,9 @@ const { findFromGateway } = require('../utils/gatewayQuery');
 const { generateScopedId, validateId } = require('../utils/idNaming');
 
 // POST /roles/create
-exports.createRole = async (req, res) => {
-  try {
-    const { name, description, permissions } = req.body;
-    const actor = req.user.id;
-    const accountId = req.accountId;
-    
+async function createRoleData(body, actor, accountId) {
+try {
+    const { name, description, permissions } = body;  
     roleId = await generateScopedId('role', accountId, 'userrole', name);
 
     //check acccount State here
@@ -16,9 +13,9 @@ exports.createRole = async (req, res) => {
 
     // Validasi name
     if (!name || typeof name !== 'string' || name.length > 10 || /\s/.test(name) || !/^[a-zA-Z0-9_]+$/.test(name)) {
-      return res.status(400).json({
+      return {status:400,
         error: 'Invalid role name. Max 10 chars, no spaces, only letters/numbers/underscore.'
-      });
+      };
     }
 
     // Cek apakah role sudah ada
@@ -28,11 +25,11 @@ exports.createRole = async (req, res) => {
     });
 
     if (state?.[0]?.roles?.[roleId]) {
-      return res.status(400).json({ error: 'Role already exists' });
+      return { status:400, error: 'Role already exists' };
     }
 
     const event = await sendEvent({
-      type: 'account.role.create',
+      type: 'role.create',
       data: {
         roleId,
         roleName,
@@ -43,9 +40,19 @@ exports.createRole = async (req, res) => {
       account: accountId
     });
 
-    res.status(201).json({ message: 'Role created', event: event.data });
+    return { status:201, message: 'Role created', event: event.data };
   } catch (err) {
     console.error('Create role failed:', err.message);
+    return { status:500, error: 'Failed to create role' };
+  }
+}
+exports.createRole = async (req, res) => {
+  try {
+    const actor = req.user.id;
+    const accountId = req.accountId;
+    createRoleData(req.body, actor, accountId, req, res);
+  } catch (err) {
+    console.error('Create Role Error:', err.message);
     res.status(500).json({ error: 'Failed to create role' });
   }
 };
@@ -72,7 +79,7 @@ exports.assignRole = async (req, res) => {
     }
 
     const event = await sendEvent({
-      type: 'account.role.assign',
+      type: 'role.assign',
       data: { role_id: roleId, user_ids: users },
       actor,
       account: accountId
@@ -99,7 +106,7 @@ exports.revokeRole = async (req, res) => {
       return res.status(400).json({ error: 'Missing role or user(s)' });
     }
 
-    const eventType = userIds === '*' ? 'account.role.revokeAll' : 'account.role.revoke';
+    const eventType = userIds === '*' ? 'role.revokeAll' : 'role.revoke';
     const event = await sendEvent({
       type: eventType,
       data: {
