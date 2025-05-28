@@ -26,7 +26,7 @@ module.exports = function () {
   const accountRoutes = require('./routes/accounts.route');
   const userRoutes = require('./routes/users.route');
   const schemaRoutes = require('./routes/schemas.route');
-  const roleRoutes = require('./routes/roles.route');
+  const groupRoutes = require('./routes/groups.route');
   const authRoutes = require('./routes/auth.route');
   const stateRoutes = require('./routes/states.route');
   const coinRoutes = require('./routes/coins.route');
@@ -42,7 +42,7 @@ module.exports = function () {
 
   app.use('/events', [authMiddleware, accountResolver], eventRoutes);
   app.use('/schemas', [authMiddleware, accountResolver], schemaRoutes);
-  app.use('/roles', [authMiddleware, accountResolver], roleRoutes);
+  app.use('/groups', [authMiddleware, accountResolver], groupRoutes);
   app.use('/users', [authMiddleware, accountResolver], userRoutes);
   
   app.use('/coins', [authMiddleware, accountResolver], coinRoutes);
