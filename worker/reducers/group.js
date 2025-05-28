@@ -9,7 +9,7 @@ exports.replay = function (events) {
         groupId: data.groupId,
         groupName: data.name,
         description: data.description || '',
-        permissions: data.permissions || [],
+        roles: data.roles || [],
         createdAt: timestamp || createdAt || new Date()
       };
     }
@@ -21,27 +21,27 @@ exports.replay = function (events) {
           ...existing,
           groupName: data.name || existing.groupName,
           description: data.description || existing.description,
-          permissions: data.permissions || existing.permissions,
+          roles: data.roles || existing.roles,
           updatedAt: timestamp || createdAt || new Date()
         };
       }
     }
 
-    if (type === 'group.permission.add') {
+    if (type === 'group.role.add') {
         const existing = groupMap[data.groupId];
         if (existing) {
-            if (!existing.permissions) existing.permissions = [];
-            if (!existing.permissions.includes(data.permission)) {
-            existing.permissions.push(data.permission);
+            if (!existing.roles) existing.roles = [];
+            if (!existing.roles.includes(data.role)) {
+            existing.roles.push(data.role);
             }
         }
         }
 
-        if (type === 'group.permission.remove') {
+        if (type === 'group.role.remove') {
         const existing = groupMap[data.groupId];
         if (existing) {
-            if (!existing.permissions) existing.permissions = [];
-            existing.permissions = existing.permissions.filter(p => p !== data.permission);
+            if (!existing.roles) existing.roles = [];
+            existing.roles = existing.roles.filter(p => p !== data.role);
         }
         }
   }

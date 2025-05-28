@@ -18,9 +18,9 @@ router.post('/assign', controller.assignGroup);
 // Revoke user dari group (list atau "*")
 router.post('/revoke', controller.revokeGroup);
 
-// Tambahkan permission ke group
-router.post('/permission/add', controller.addPermission);
+// Tambahkan role ke group
+router.post('/role/add', controller.addRole);
 
-// Hapus permission dari group
-router.post('/permission/remove', controller.removePermissionFromGroup);
+// Hapus role dari group
+router.post('/role/remove', controller.removeRoleFromGroup);
 module.exports = router;

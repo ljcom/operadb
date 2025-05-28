@@ -61,7 +61,7 @@ exports.createAccount = async (req, res) => {
               groupId: adminGroupId,
               name: 'admin',
               description: 'First User',
-              permissions: ['*']
+              roles: ['*']
             }
           },
           {

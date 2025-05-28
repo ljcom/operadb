@@ -5,7 +5,7 @@ const { generateScopedId, validateId } = require('../utils/idNaming');
 // POST /groups/create
 async function createGroupData(body, actor, accountId) {
 try {
-    const { name, description, permissions } = body;  
+    const { name, description, roles } = body;  
     groupId = await generateScopedId('group', accountId, 'usergroup', name);
 
     //check acccount State here
@@ -34,7 +34,7 @@ try {
         groupId,
         groupName,
         description,
-        permissions
+        roles
       },
       actor,
       account: accountId
@@ -124,15 +124,15 @@ exports.revokeGroup = async (req, res) => {
   }
 };
 
-exports.addPermission = async (req, res) => {
-  const { groupId, permission } = req.body;
-  if (!groupId || !permission) {
-    return res.status(400).json({ error: 'Missing groupId or permission' });
+exports.addRole = async (req, res) => {
+  const { groupId, role } = req.body;
+  if (!groupId || !role) {
+    return res.status(400).json({ error: 'Missing groupId or role' });
   }
 
   await sendEvent({
-    type: 'group.permission.add',
-    data: { groupId, permission },
+    type: 'group.role.add',
+    data: { groupId, role },
     actor: req.address,
     account: req.account
   });
@@ -140,10 +140,10 @@ exports.addPermission = async (req, res) => {
   res.json({ success: true });
 };
 
-exports.removePermissionFromgroup = async function ({ groupid, permission, actor, account }) {
+exports.removeRoleFromgroup = async function ({ groupid, role, actor, account }) {
   await sendEvent({
-    type: 'group.permission.remove',
-    data: { groupid, permission },
+    type: 'group.role.remove',
+    data: { groupid, role },
     actor,
     account
   });
