@@ -6,7 +6,7 @@ const { generateScopedId, validateId } = require('../utils/idNaming');
 async function createGroupData(body, actor, accountId) {
 try {
     const { name, description, roles } = body;  
-    groupId = await generateScopedId('group', accountId, 'usergroup', name);
+    groupId = await generateScopedId('grp', accountId, 'usergroup', name);
 
     //check acccount State here
 

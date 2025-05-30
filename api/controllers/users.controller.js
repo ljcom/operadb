@@ -20,7 +20,7 @@ async function createUserData(body, actor, accountId, req, res) {
         return { status: 409, error: 'User already exists' };
       }
 
-      const userId = await generateScopedId('user', accountId, 'account', username);
+      const userId = await generateScopedId('usr', accountId.split(':')[1], 'user', username);
       const passwordHash = await bcrypt.hash(password, 10);
 
       const result = await sendEvent({

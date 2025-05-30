@@ -8,7 +8,7 @@ const slugify = (str) => {
     .substring(0, 20);
 };
 
-const hashTail = (str, len = 4) => {
+const hashTail = (str, len = 8) => {
   return crypto.createHash('md5').update(str).digest('hex').substring(0, len);
 };
 
@@ -30,6 +30,7 @@ const prefixMap = {
   address: '0x'
 };
 
+
 // ✅ Generate ID dengan prefix + hash
 function generateId(entityType, data) {
   if (!prefixMap[entityType]) {
@@ -44,34 +45,32 @@ function generateId(entityType, data) {
   return prefixMap[entityType] + hash;
 }
 
-function isValidNamespace(ns) {
+function isValidIdFormat(ns) {
   return typeof ns === 'string' &&
          ns.length <= 16 &&
          /^[a-z0-9._-]+$/.test(ns);
 }
-
-async function generateScopedId(prefix, namespace, type, description) {
-  const baseSlug = slugify(description);
-  let finalSlug = baseSlug;
-  let counter = 1;
-
-  // Fungsi pembantu untuk cek apakah ID sudah ada
-  async function idExists(id) {
-    const result = await findFromGateway('states', {
-      entityType: prefix,
-      entityId: id
-    });
-    return result && result.length > 0;
+async function generateScopedId(prefix, account, type, name, data) {
+  if (prefix === 'org' && type === 'account') {
+    // Account ID
+    return `org:${account}`;
   }
 
-  // Coba sampai ID unik ditemukan
-  while (await idExists(`${prefix}:${namespace}:${type}:${finalSlug}`)) {
-    finalSlug = `${baseSlug}-${counter}`;
-    counter++;
-    if (counter > 9999) throw new Error('Too many duplicates');
+  if (type === 'group' || type === 'user' || type === 'schema' 
+      || prefix === 'mod' || prefix === 'usr' || prefix === 'grp') {
+    // Schema ID
+    // (name di sini = schemaName, wajib tanpa spasi, validasi di luar)
+    return `${prefix}:${account}:${name}`;
   }
 
-  return `${prefix}:${namespace}:${type}:${finalSlug}`;
+  // Untuk object instance/record, tanpa loop, pakai hash dari data
+  // data bisa stringified object atau timestamp+random
+  let hash = data
+    ? hashTail(JSON.stringify(data))
+    : hashTail(`${Date.now()}-${Math.random()}`);
+
+  // id = <obj>:<account>:<schemaname>:<hash>
+  return `${prefix}:${account}:${name}:${hash}`;
 }
 
 async function validateScopedId(id) {
@@ -165,7 +164,7 @@ module.exports = {
   parseId,
   prefixMap,
   validateId,
-  isValidNamespace,
+  isValidIdFormat,
   generateScopedId,
   validateScopedId,
   isValidAddressFormat

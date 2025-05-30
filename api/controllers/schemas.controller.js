@@ -1,20 +1,39 @@
 const { sendEvent } = require('../utils/eventSender');
-const { generateScopedId, isValidNamespace } = require('../utils/idNaming');
+const { generateScopedId, isValidIdFormat } = require('../utils/idNaming');
+const { findFromGateway } = require('../utils/gatewayQuery');
 
 exports.createSchema = async (req, res) => {
   try {
-    const { description, fields, reducerCode, version, workflow, format_type } = req.body;
+    const { schemaId, description, fields, reducerCode, entityType,
+        version, workflow, format_type } = req.body;
 
     const accountId = req.accountId;
-    
-    const schemaId = await generateScopedId('schema', accountId, format_type, description);
     const actor = req.user.id;
 
-    if (!schemaId || !reducerCode) {
+    if (!fields || !entityType || !version || !reducerCode) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
 
-    if (!format_type || !['coin', 'asset', 'contract', 'data'].includes(format_type)) {
+    if (!isValidIdFormat(schemaId)) {
+      return res.status(400).json({ error: 'Invalid SchemaId format (3-16 lowercase chars)' });
+    }  
+    //const schemaId1 = `mod:${accountId.split(':')[1]}:${schemaId}`;
+    const schemaId1 = await generateScopedId('mod', accountId.split(':')[1], 'schema', schemaId);
+
+    // Setelah generate schemaId1
+    const existing = await findFromGateway('states', {
+      entityType: 'schema',
+      refId: schemaId1
+    });
+    if (existing && existing.length > 0) {
+      return res.status(409).json({ error: `Schema ${schemaId} already exists`});
+    }
+
+    if (!entityType || !['coin', 'asset', 'contract', 'data'].includes(entityType)) {
+      return res.status(400).json({ error: 'Missing or invalid entityType' });
+    }
+
+    if (!format_type || !['actor', 'unique', 'commodity'].includes(format_type)) {
       return res.status(400).json({ error: 'Missing or invalid format_type' });
     }
 
@@ -41,7 +60,8 @@ exports.createSchema = async (req, res) => {
     const result = await sendEvent({
       type: 'schema.create',
       data: {
-        schemaId,
+        schemaId:schemaId1,
+        entityType,
         format_type,
         description,
         fields,

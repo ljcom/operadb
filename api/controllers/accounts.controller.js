@@ -1,7 +1,7 @@
 const { ethers } = require('ethers');
 const bcrypt = require('bcrypt');
 const { sendEvent } = require('../utils/eventSender');
-const { isValidAddressFormat, isValidNamespace } = require('../utils/idNaming');
+const { isValidAddressFormat, isValidIdFormat } = require('../utils/idNaming');
 
 exports.createAccount = async (req, res) => {
   console.log('🟡 Entered createAccount controller');
@@ -18,7 +18,7 @@ exports.createAccount = async (req, res) => {
       return res.status(403).json({ error: 'Timestamp too old or too far ahead' });
     }
 
-    if (!isValidNamespace(namespace)) {
+    if (!isValidIdFormat(namespace)) {
       return res.status(400).json({ error: 'Invalid namespace format (3-16 lowercase chars)' });
     }
 

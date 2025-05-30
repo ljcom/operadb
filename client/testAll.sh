@@ -1,0 +1,7 @@
+node 0cleanup
+node 2testcreateaccount
+node 3testlogin
+node 3testwalletlogin
+node 4testcreateschema
+node 5testcreateasset
+#node 5testcoinflow
