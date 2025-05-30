@@ -23,16 +23,16 @@ router.get('/', async (req, res) => {
   }
 });
 
-// GET user by username (from state)
 router.get('/byname/:username', async (req, res) => {
   try {
-    const accountId = req.accountId || req.query.accountId || req.body.accountId;
+    const accountId = req.accountId || req.query.account || req.body.accountId;
     const state = await findFromGateway('states', {
       entityType: 'user',
       account: accountId
     });
 
-    const users = state[0]?.state?.users || [];
+    const usersObj = state[0]?.state || {};
+    const users = Object.values(usersObj);
     const user = users.find(u => u.username === req.params.username);
 
     if (!user) return res.status(404).json({ error: 'User not found' });

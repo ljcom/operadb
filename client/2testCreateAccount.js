@@ -55,14 +55,19 @@ dotenv.config({ path: path.join(__dirname, '.env') });
     fs.writeFileSync(envPath, newEnv.join('\n'), 'utf-8');
     console.log('💾 ACCOUNT_ID saved to .env');
 
-    console.log('⏳ Waiting 2s for replay...');
-    await new Promise(resolve => setTimeout(resolve, 2000));
+    console.log('⏳ Waiting 1s for replay...');
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+  const loginTimestamp = Math.floor(Date.now() / 1000); // lebih baik buat timestamp baru untuk login
+  const loginMessage = `login:${accountId}:${email}:${loginTimestamp}`;
+  const loginSignature = await wallet.signMessage(loginMessage);
 
     const loginPayload = {
+      accountId,
       email,
-      timestamp,
+      timestamp: loginTimestamp,
       address: wallet.address,
-      signature
+      signature: loginSignature
     };
 
     console.log('🔑 Logging in with wallet...');

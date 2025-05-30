@@ -3,6 +3,8 @@ const axios = require('axios');
 
 const endpoint = process.env.API_URL;
 const token = process.env.USER1_TOKEN;
+const accountId = process.env.ACCOUNT_ID;
+
 const headers = {
   Authorization: `Bearer ${token}`,
   'Content-Type': 'application/json'
@@ -45,6 +47,7 @@ const schemas = [
 (async () => {
   for (const schema of schemas) {
     try {
+      const payload = { ...schema, accountId };
       const res = await axios.post(`${endpoint}/schemas`, schema, { headers });
       console.log(`✅ Created schema: ${schema.schemaId}`, res.data);
     } catch (err) {
