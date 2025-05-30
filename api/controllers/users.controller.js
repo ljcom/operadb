@@ -1,5 +1,6 @@
 const { sendEvent } = require('../utils/eventSender');
-const { generateScopedId, isValidNamespace } = require('../utils/idNaming');
+const { generateScopedId } = require('../utils/idNaming');
+const { findFromGateway } = require('../utils/gatewayQuery');
 const bcrypt = require('bcrypt');
 
 async function createUserData(body, actor, accountId, req, res) {
@@ -7,6 +8,17 @@ async function createUserData(body, actor, accountId, req, res) {
     const { username, email, password, group } = body;
 
       if (!username || !password) return res.status(400).json({ error: 'Missing username or password' });
+
+      // CEK EXISTING USER DI STATE
+      const state = await findFromGateway('states', {
+        entityType: 'user',
+        account: accountId
+      });
+
+      const users = state[0]?.state?.users || [];
+      if (users.some(u => u.username === username)) {
+        return { status: 409, error: 'User already exists' };
+      }
 
       const userId = await generateScopedId('user', accountId, 'account', username);
       const passwordHash = await bcrypt.hash(password, 10);
@@ -29,12 +41,15 @@ async function createUserData(body, actor, accountId, req, res) {
     return { status: 500, error: 'Failed to create user' };
   }
 }
+
 exports.createUser = async (req, res) => {
   try {
     const actor = req.user.id;
     const accountId = req.accountId;
-    const r = createUserData(req.body, actor, accountId, req, res);
-    res.status(r.status).json(message, error);
+    const r = await createUserData(req.body, actor, accountId, req, res);
+
+    if (r.error) return res.status(r.status).json({ error: r.error });
+    res.status(r.status).json({ message: r.message, event: r.event });
   } catch (err) {
     console.error('Create User Error:', err.message);
     res.status(500).json({ error: 'Failed to create user' });

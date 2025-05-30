@@ -9,9 +9,10 @@ router.post('/', userController.createUser);
 // GET all users (from state)
 router.get('/', async (req, res) => {
   try {
+    const accountId = req.accountId || req.query.accountId || req.body.accountId;
     const state = await findFromGateway('states', {
       entityType: 'user',
-      account: req.accountId
+      account: accountId
     });
 
     const users = state[0]?.state?.users || [];
@@ -25,9 +26,10 @@ router.get('/', async (req, res) => {
 // GET user by username (from state)
 router.get('/byname/:username', async (req, res) => {
   try {
+    const accountId = req.accountId || req.query.accountId || req.body.accountId;
     const state = await findFromGateway('states', {
       entityType: 'user',
-      account: req.accountId
+      account: accountId
     });
 
     const users = state[0]?.state?.users || [];

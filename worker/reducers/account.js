@@ -6,7 +6,7 @@ exports.replay = function (events, baseState = {}) {
 
   return {
     ...baseState,
-    address: latest.data.address,
+    address: latest.data.address.toLowerCase(),
     admin_user: latest.data.admin_user // ← optional, jika kamu simpan
   };
 };
