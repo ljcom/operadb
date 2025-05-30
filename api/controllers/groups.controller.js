@@ -32,7 +32,7 @@ try {
       type: 'group.create',
       data: {
         groupId,
-        groupName,
+        groupName: name,
         description,
         roles
       },
@@ -50,7 +50,9 @@ exports.createGroup = async (req, res) => {
   try {
     const actor = req.user.id;
     const accountId = req.accountId;
-    createGroupData(req.body, actor, accountId, req, res);
+    const r = createGroupData(req.body, actor, accountId, req, res);
+    res.status(r.status).json(message, error);
+
   } catch (err) {
     console.error('Create Group Error:', err.message);
     res.status(500).json({ error: 'Failed to create group' });
@@ -140,7 +142,7 @@ exports.addRole = async (req, res) => {
   res.json({ success: true });
 };
 
-exports.removeRoleFromgroup = async function ({ groupid, role, actor, account }) {
+exports.removeRoleFromGroup = async function ({ groupid, role, actor, account }) {
   await sendEvent({
     type: 'group.role.remove',
     data: { groupid, role },

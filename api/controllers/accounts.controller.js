@@ -79,7 +79,7 @@ exports.createAccount = async (req, res) => {
 
       res.status(201).json({
         message: 'Account + Group + User submitted in batch',
-        event: result
+        event: data
       });
     } catch (err) {
       console.error('Create Account Error:', err.message);

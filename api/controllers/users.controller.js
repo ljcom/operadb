@@ -23,7 +23,7 @@ async function createUserData(body, actor, accountId, req, res) {
         account: accountId,
         actor
       });
-      return { message: 'User creation event submitted', event: result.data };
+      return { status:201, message: 'User creation event submitted', event: result.data };
   } catch (err) {
     console.error('Create User Error:', err.message);
     return { status: 500, error: 'Failed to create user' };

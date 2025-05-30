@@ -14,10 +14,11 @@ const MODE = process.env.EVENT_PROCESS_MODE || 'consensus';
  * @param {string} actor - ID pengguna
  */
 
-exports.sendEvent = async ({ type, data, account, actor, replay = true, prior = [],
-  abortOnPriorFailure = true, batchId }) => {
+exports.sendEvent = async ({ type, data, account, 
+    actor, replay = true, prior = [],
+    abortOnPriorFailure = true, batchId }) => {
 
-  if (!batchId) batchId = `batch:${Date.now()}:${randomUUID().slice(0, 8)}`;
+  //if (!batchId) batchId = `batch:${Date.now()}:${randomUUID().slice(0, 8)}`;
 
   for (const pEvent of prior) {
     try {

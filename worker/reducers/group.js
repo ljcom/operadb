@@ -7,7 +7,7 @@ exports.replay = function (events) {
     if (type === 'group.create') {
       groupMap[data.groupId] = {
         groupId: data.groupId,
-        groupName: data.name,
+        groupName: data.groupName,
         description: data.description || '',
         roles: data.roles || [],
         createdAt: timestamp || createdAt || new Date()
@@ -19,7 +19,7 @@ exports.replay = function (events) {
       if (existing) {
         groupMap[data.groupId] = {
           ...existing,
-          groupName: data.name || existing.groupName,
+          groupName: data.groupName || existing.groupName,
           description: data.description || existing.description,
           roles: data.roles || existing.roles,
           updatedAt: timestamp || createdAt || new Date()
