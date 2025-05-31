@@ -6,7 +6,7 @@ exports.replay = function (events) {
       const id = e.data.schemaId;
       schemaMap[id] = {
         schemaId: id,
-        format_type: e.data.format_type || 'contract',
+        formatType: e.data.formatType || 'contract',
         description: e.data.description,
         fields: e.data.fields,
         reducerCode: e.data.reducerCode,

@@ -2,10 +2,40 @@ const { sendEvent } = require('../utils/eventSender');
 const { generateScopedId, isValidIdFormat } = require('../utils/idNaming');
 const { findFromGateway } = require('../utils/gatewayQuery');
 
+const defaultFieldsMap = {
+  coin: [
+    { name: 'symbol', type: 'string', required: true },
+    { name: 'decimals', type: 'number', required: true },
+    { name: 'totalSupply', type: 'number', required: true },
+    { name: 'to', type: 'string', required: false }
+  ],
+  asset: [
+    { name: 'assetId', type: 'string', required: true },
+    { name: 'name', type: 'string', required: true },
+    { name: 'qty', type: 'number', required: true },
+    { name: 'formatType', type: 'string', required: true },
+    { name: 'unit', type: 'string', required: false }
+  ],
+  contract: [
+    { name: 'contractId', type: 'string', required: true },
+    { name: 'title', type: 'string', required: true },
+    { name: 'partyA', type: 'string', required: true },
+    { name: 'partyB', type: 'string', required: true },
+    { name: 'effectiveDate', type: 'date', required: false },
+    { name: 'expiryDate', type: 'date', required: false }
+  ],
+  data: [
+    { name: 'dataId', type: 'string', required: true },
+    { name: 'source', type: 'string', required: true },
+    { name: 'value', type: 'string', required: true },
+    { name: 'timestamp', type: 'datetime', required: false }
+  ]
+};
+
 exports.createSchema = async (req, res) => {
   try {
     const { schemaId, description, fields, reducerCode, entityType,
-        version, workflow, format_type } = req.body;
+        version, workflow, formatType } = req.body;
 
     const accountId = req.accountId;
     const actor = req.user.id;
@@ -33,8 +63,23 @@ exports.createSchema = async (req, res) => {
       return res.status(400).json({ error: 'Missing or invalid entityType' });
     }
 
-    if (!format_type || !['actor', 'unique', 'commodity'].includes(format_type)) {
-      return res.status(400).json({ error: 'Missing or invalid format_type' });
+    if (entityType=='asset') {
+      if (!formatType || !['actor', 'unique', 'commodity'].includes(formatType)) {
+        return res.status(400).json({ error: 'Missing or invalid formatType' });
+      }
+    }
+
+    if (defaultFieldsMap[entityType]) {
+      const fieldMap = Object.fromEntries(fields.map(f => [f.name, f]));
+
+      for (const def of defaultFieldsMap[entityType]) {
+        const match = fieldMap[def.name];
+        if (!match || match.type !== def.type) {
+          return res.status(400).json({
+            error: `Missing or incorrect required field for ${entityType}: ${def.name} (type: ${def.type})`
+          });
+        }
+      }
     }
 
     if (workflow) {
@@ -62,7 +107,7 @@ exports.createSchema = async (req, res) => {
       data: {
         schemaId:schemaId1,
         entityType,
-        format_type,
+        formatType,
         description,
         fields,
         reducerCode,

@@ -1,32 +1,47 @@
 const { sendEvent } = require('../utils/eventSender');
 const { findFromGateway } = require('../utils/gatewayQuery');
-const { generateScopedId } = require('../utils/idNaming');
+const { generateScopedId, validateId } = require('../utils/idNaming');
 
 // POST /coins/create
 exports.createCoin = async (req, res) => {
   try {
-    const { symbol, decimals = 0, totalSupply, description } = req.body;
+    const { symbol, decimals = 0, totalSupply, description, to } = req.body;
     const actor = req.user.id;
     const accountId = req.accountId;
 
-    const coinId = await generateScopedId('coin', accountId, symbol.toLowerCase(), description || '');
+    let recipient = to;
+    if (!recipient) {
+      const accState = await findFromGateway('states', {
+        entityType: 'account',
+        refId: accountId
+      });
 
-    const isValid = await validateId(actor);
-    if (!isValid) return res.status(400).json({ error: 'Invalid creator ID' });
+      if (!accState.length || !accState[0].state?.owner) {
+        return res.status(400).json({ error: 'Cannot determine recipient (owner missing)' });
+      }
+
+      recipient = accState[0].state.owner;
+    }
+
+    const coinId = await generateScopedId('coin', accountId.split(':')[1], 'coin', symbol.toLowerCase(), description || '');
+
+    //const isValid = await validateId(actor);
+    //if (!isValid) return res.status(400).json({ error: 'Invalid creator ID' });
 
     if (!totalSupply || totalSupply <= 0) {
       return res.status(400).json({ error: 'Invalid totalSupply' });
     }
 
-    if (!decimals || decimals >= 0) {
+    if (!decimals || decimals < 0) {
       return res.status(400).json({ error: 'Invalid decimals' });
     }
 
     const event = await sendEvent({
       type: 'coin.create',
-      data: { coin_id: coinId, symbol, decimals, total_supply: totalSupply, description, creator: actor },
+      data: { coinId, symbol, decimals, totalSupply, description, to: recipient },
       actor,
-      account: null
+      account: accountId
+      
     });
 
     res.status(201).json({ message: 'Coin created', event: event.data });
@@ -70,7 +85,7 @@ exports.mintCoin = async (req, res) => {
 
     const event = await sendEvent({
       type: 'coin.mint',
-      data: { coin_id: coinId, to, amount },
+      data: { coinId, to, amount },
       actor,
       account: null
     });
@@ -107,7 +122,7 @@ exports.burnCoin = async (req, res) => {
 
     const event = await sendEvent({
       type: 'coin.burn',
-      data: { coin_id: coinId, amount },
+      data: { coinId, amount },
       actor,
       account: null
     });
@@ -149,7 +164,7 @@ exports.transferCoin = async (req, res) => {
 
     const event = await sendEvent({
       type: 'coin.transfer',
-      data: { coin_id: coinId, from: actor, to, amount },
+      data: { coinId, from: actor, to, amount },
       actor,
       account: null
     });
@@ -181,7 +196,7 @@ exports.approveSpender = async (req, res) => {
 
     const event = await sendEvent({
       type: 'coin.approve',
-      data: { coin_id: coinId, owner: actor, spender, amount },
+      data: { coinId, owner: actor, spender, amount },
       actor,
       account: null
     });
@@ -224,7 +239,7 @@ exports.transferFromCoin = async (req, res) => {
 
     const event = await sendEvent({
       type: 'coin.transferFrom',
-      data: { coin_id: coinId, from, to, amount },
+      data: { coinId, from, to, amount },
       actor,
       account: null
     });
@@ -274,11 +289,11 @@ exports.getCoinMetadata = async (req, res) => {
 
     const totalSupply = Object.values(coin.holders || {}).reduce((sum, qty) => sum + qty, 0);
     res.status(200).json({
-      coin_id: id,
+      coinId: id,
       symbol: coin.symbol,
       decimals: coin.decimals,
       description: coin.description || '',
-      total_supply: totalSupply
+      totalSupply
     });
   } catch (err) {
     console.error('Get coin metadata failed:', err.message);
@@ -302,7 +317,7 @@ exports.getBalance = async (req, res) => {
       .map(state => {
         const qty = state.holders?.[address] || 0;
         return {
-          coin_id: state.entityId,
+          coinId: state.entityId,
           symbol: state.symbol,
           balance: qty
         };
@@ -323,7 +338,7 @@ exports.getTotalSupply = async (req, res) => {
     });
 
     const supplies = coinStates.map(state => ({
-      coin_id: state.entityId,
+      coinId: state.entityId,
       symbol: state.symbol,
       totalQty: state.totalQty || 0
     }));

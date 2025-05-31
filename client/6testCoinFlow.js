@@ -2,21 +2,23 @@ const axios = require('axios');
 require('dotenv').config();
 
 const API_URL = process.env.API_URL;
-const USER1_TOKEN = process.env.TOKEN_USER1;
-const USER2_TOKEN = process.env.TOKEN_USER2;
+const USER1_TOKEN = process.env.USER1_TOKEN;
+const USER2_TOKEN = process.env.USER2_TOKEN;
 const USER1_ADDRESS = process.env.USER1_ADDRESS;
 const USER2_ADDRESS = process.env.USER2_ADDRESS;
+const accountId = process.env.ACCOUNT_ID;
 
 (async () => {
   try {
     // 1. USER1 create coin
     console.log('🪙 USER1 - Create Coin...');
-    const createCoinRes = await axios.post(`${API_URL}/coins`, {
+    const createCoinRes = await axios.post(`${API_URL}/coins?account=${accountId}`, {
       name: 'Test Coin',
       symbol: 'TCN',
-      decimal: 2,
-      initialSupply: 1000,
-      to: USER1_ADDRESS
+      decimals: 2,
+      totalSupply: 1000,
+      to: USER1_ADDRESS,
+      account: accountId
     }, {
       headers: {
         Authorization: `Bearer ${USER1_TOKEN}`,

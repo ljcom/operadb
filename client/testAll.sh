@@ -4,4 +4,4 @@ node 3testlogin
 node 3testwalletlogin
 node 4testcreateschema
 node 5testcreateasset
-#node 5testcoinflow
+node 6testcoinflow

@@ -1,33 +1,38 @@
 const { sendEvent } = require('../utils/eventSender');
 const { findFromGateway } = require('../utils/gatewayQuery');
-const { generateId, parseId } = require('../utils/idNaming');
+const { generateId, parseId, generateScopedId } = require('../utils/idNaming');
 
 // 1. Mint asset
 exports.mintAsset = async (req, res) => {
   try {
-    const { to, type, asset_mode, qty, metadata, schemaId } = req.body;
+    const { to, qty, schemaId } = req.body;
+    const metadata = req.body;
     const actor = req.user.id;
     const accountId = req.accountId;
 
     // Validasi awal wajib
-    if (!schemaId || !type || !asset_mode) {
-      return res.status(400).json({ error: 'Missing required fields: schemaId, type, asset_mode' });
+    if (!schemaId) {
+      return res.status(400).json({ error: 'Missing required field: schemaId' });
     }
-
-    // Ambil dan validasi schema milik account ini
+    const schemaId1 = await generateScopedId('mod', accountId.split(':')[1], 'schema', schemaId);
+    // Ambil schema dari gateway
     const schemaRes = await findFromGateway('states', {
       entityType: 'schema',
-      entityId: schemaId,
+      refId: schemaId1,
       account: accountId
     });
 
     const schema = schemaRes?.[0];
-    if (!schema || schema.entityType !== 'asset') {
+    if (!schema) {
       return res.status(400).json({ error: 'Invalid schemaId or not for asset' });
     }
 
+    // Ambil type dan asset_mode (formatType) dari schema
+    const type = schemaId1.split(':')[2];
+    const asset_mode = schema.state[schemaId1].formatType;
+
     // Validasi field metadata terhadap schema.fields
-    const fields = schema.fields || [];
+    const fields = schema.state[schemaId1].fields || [];
     for (const field of fields) {
       if (field.required && (metadata?.[field.name] === undefined || metadata[field.name] === null)) {
         return res.status(400).json({ error: `Missing required field in metadata: ${field.name}` });
@@ -35,13 +40,14 @@ exports.mintAsset = async (req, res) => {
     }
 
     // Generate assetId
-    const assetId = await generateScopedId('obj', accountId, type, metadata?.name || actor);
+    const assetId = await generateScopedId('obj', accountId, 'asset', type, metadata?.name || actor);
 
     // Validasi berdasarkan asset_mode
     if (!['actor', 'unique', 'commodity'].includes(asset_mode)) {
       return res.status(400).json({ error: 'Invalid asset_mode: must be actor, unique, or commodity' });
     }
 
+    let qty1 = null;
     if (asset_mode === 'actor') {
       if (qty) {
         return res.status(400).json({ error: 'actor mode cannot include "qty"' });
@@ -49,15 +55,17 @@ exports.mintAsset = async (req, res) => {
     }
 
     if (asset_mode === 'unique') {
-      if (!to || qty !== 1) {
-        return res.status(400).json({ error: 'unique mode requires qty = 1 and valid "to"' });
+      if ( qty > 1) {
+        return res.status(400).json({ error: 'unique mode requires qty = 1' });
       }
+      qty1 = 1;
     }
 
     if (asset_mode === 'commodity') {
-      if (!to || qty == null || qty < 0) {
-        return res.status(400).json({ error: 'commodity mode requires qty > 0 and valid "to"' });
+      if ( qty == null || qty < 0) {
+        return res.status(400).json({ error: 'commodity mode requires qty > 0' });
       }
+      qty1 = qty;
     }
 
     if (asset_mode !== 'actor' && qty === 0) {
@@ -87,7 +95,7 @@ exports.mintAsset = async (req, res) => {
         schemaId,
         type,
         asset_mode,
-        qty,
+        qty: qty1,
         to,
         metadata
       },

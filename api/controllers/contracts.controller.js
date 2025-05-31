@@ -47,8 +47,8 @@ exports.createContract = async (req, res) => {
       account: accountId
     });
     const schema = schemaList?.[0];
-    if (!schema || schema.format_type !== 'contract') {
-      return res.status(400).json({ error: 'Invalid schema or wrong format_type' });
+    if (!schema || schema.formatType !== 'contract') {
+      return res.status(400).json({ error: 'Invalid schema or wrong formatType' });
     }
 
     // validate data against schema.fields

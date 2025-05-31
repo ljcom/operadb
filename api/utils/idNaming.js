@@ -56,8 +56,8 @@ async function generateScopedId(prefix, account, type, name, data) {
     return `org:${account}`;
   }
 
-  if (type === 'group' || type === 'user' || type === 'schema' 
-      || prefix === 'mod' || prefix === 'usr' || prefix === 'grp') {
+  if (type === 'group' || type === 'user' || type === 'schema' || type=='coin'
+      || prefix === 'mod' || prefix === 'usr' || prefix === 'grp' || prefix === 'coin') {
     // Schema ID
     // (name di sini = schemaName, wajib tanpa spasi, validasi di luar)
     return `${prefix}:${account}:${name}`;

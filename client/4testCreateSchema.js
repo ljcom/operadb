@@ -10,14 +10,14 @@ const headers = {
   'Content-Type': 'application/json'
 };
 
-// Lengkapi format_type dan description di setiap schema!
+// Lengkapi formatType dan description di setiap schema!
 const schemas = [
   {
     schemaId: 'customer',
     entityType: 'asset',
     type: 'customer',
     version: 1,
-    format_type: 'actor',
+    formatType: 'actor',
     description: 'Schema untuk data customer',
     reducerCode: '// reducer for customer',
     fields: [
@@ -32,7 +32,7 @@ const schemas = [
     entityType: 'asset',
     type: 'certificate',
     version: 1,
-    format_type: 'unique',
+    formatType: 'unique',
     description: 'Schema untuk sertifikat',
     reducerCode: '// reducer for certificate',
     fields: [
@@ -46,7 +46,7 @@ const schemas = [
     entityType: 'asset',
     type: 'product',
     version: 1,
-    format_type: 'commodity',
+    formatType: 'commodity',
     description: 'Schema untuk produk',
     reducerCode: '// reducer for product',
     fields: [
