@@ -13,7 +13,9 @@ exports.createEvent = async (req, res) => {
     if (accounts.length === 0) {
       return res.status(400).json({ error: 'Invalid or unknown accountId' });
     }
-
+    if (req.user.id && !isValidAddressFormat(req.user.id)) {
+      return res.status(400).json({ error: 'Invalid Public address format' });
+    }
     const result = await sendEvent({
       type,
       data,

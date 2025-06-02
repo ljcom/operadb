@@ -40,6 +40,9 @@ exports.createAccount = async (req, res) => {
       return res.status(403).json({ error: 'Signature verification failed' });
     }
 
+    if (address && !isValidAddressFormat(address)) {
+      return res.status(400).json({ error: 'Invalid Public address format' });
+    }    
     //bukan generateScopedId
     //const accountId = generateId('org', { email, address }); // one-time hashed
 

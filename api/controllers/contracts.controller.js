@@ -1,7 +1,7 @@
 const { sendEvent } = require('../utils/eventSender');
 const { findFromGateway } = require('../utils/gatewayQuery');
 const { validateAgainstSchema } = require('../utils/validateAgainstSchema.js'); // ⬅️ helper flatten validator
-const { generateScopedId } = require('../utils/idNaming');
+const { generateScopedId, isValidAddressFormat } = require('../utils/idNaming');
 
 exports.createContract = async (req, res) => {
   try {
@@ -56,7 +56,12 @@ exports.createContract = async (req, res) => {
     if (!validation.ok) {
       return res.status(400).json({ error: validation.error });
     }
-
+    if (from && !isValidAddressFormat(from)) {
+      return res.status(400).json({ error: 'Invalid Public address format' });
+    }
+    if (to && !isValidAddressFormat(to)) {
+      return res.status(400).json({ error: 'Invalid Public address format' });
+    }
     const contractId = await generateScopedId('trx', accountId, type, subject);
 
     const result = await sendEvent({

@@ -10,6 +10,7 @@ const USER1_PASSWORD = process.env.USER1_PASSWORD;
 
 const USER2_EMAIL = process.env.USER2_EMAIL;
 const USER2_PASSWORD = process.env.USER2_PASSWORD;
+const USER2_ADDRESS = process.env.USER2_ADDRESS;
 
 const ACCOUNT_ID = process.env.ACCOUNT_ID;
 
@@ -45,7 +46,7 @@ async function userExists(username, token) {
   }
 }
 
-async function createUser({ username, email, password, group }, token) {
+async function createUser({ username, email, password, group, address }, token) {
   try {
     console.log(`🆕 Creating user ${username}...`);
     const res = await axios.post(`${BASE_URL}/users`, {
@@ -53,6 +54,7 @@ async function createUser({ username, email, password, group }, token) {
       email,
       password,
       group,
+      address,
       accountId: ACCOUNT_ID
     }, {
       headers: { Authorization: `Bearer ${token}` },
@@ -77,6 +79,7 @@ async function createUser({ username, email, password, group }, token) {
       username: USER2_ID,
       email: USER2_EMAIL,
       password: USER2_PASSWORD,
+      address: USER2_ADDRESS,
       group: `group:${ACCOUNT_ID}:admins`
     }, user1Token);
   }

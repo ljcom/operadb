@@ -1,6 +1,6 @@
 const { sendEvent } = require('../utils/eventSender');
 const { findFromGateway } = require('../utils/gatewayQuery');
-const { generateScopedId, validateId } = require('../utils/idNaming');
+const { generateScopedId, validateId, isValidAddressFormat } = require('../utils/idNaming');
 
 // POST /coins/create
 exports.createCoin = async (req, res) => {
@@ -16,11 +16,11 @@ exports.createCoin = async (req, res) => {
         refId: accountId
       });
 
-      if (!accState.length || !accState[0].state?.owner) {
+      if (!accState.length || !accState[0].state?.address) {
         return res.status(400).json({ error: 'Cannot determine recipient (owner missing)' });
       }
 
-      recipient = accState[0].state.owner;
+      recipient = accState[0].state.address;
     }
 
     const coinId = await generateScopedId('coin', accountId.split(':')[1], 'coin', symbol.toLowerCase(), description || '');
@@ -35,7 +35,9 @@ exports.createCoin = async (req, res) => {
     if (!decimals || decimals < 0) {
       return res.status(400).json({ error: 'Invalid decimals' });
     }
-
+    if (recipient && !isValidAddressFormat(recipient)) {
+      return res.status(400).json({ error: 'Invalid Public address format' });
+    }
     const event = await sendEvent({
       type: 'coin.create',
       data: { coinId, symbol, decimals, totalSupply, description, to: recipient },
@@ -82,7 +84,9 @@ exports.mintCoin = async (req, res) => {
     if (!coinState || coinState.creator !== actor) {
       return res.status(403).json({ error: 'Only coin creator can mint' });
     }
-
+    if (to && !isValidAddressFormat(to)) {
+      return res.status(400).json({ error: 'Invalid Public address format' });
+    }
     const event = await sendEvent({
       type: 'coin.mint',
       data: { coinId, to, amount },
@@ -161,7 +165,9 @@ exports.transferCoin = async (req, res) => {
     if (balance < amount) {
       return res.status(400).json({ error: 'Insufficient balance' });
     }
-
+    if (to && !isValidAddressFormat(to)) {
+      return res.status(400).json({ error: 'Invalid Public address format' });
+    }
     const event = await sendEvent({
       type: 'coin.transfer',
       data: { coinId, from: actor, to, amount },
@@ -193,7 +199,9 @@ exports.approveSpender = async (req, res) => {
 
     if (!coinValid) return res.status(400).json({ error: 'Invalid coin ID' });
     if (!spenderValid) return res.status(400).json({ error: 'Invalid spender ID' });
-
+    if (actor && !isValidAddressFormat(actor)) {
+      return res.status(400).json({ error: 'Invalid Public address format' });
+    }
     const event = await sendEvent({
       type: 'coin.approve',
       data: { coinId, owner: actor, spender, amount },
@@ -236,7 +244,9 @@ exports.transferFromCoin = async (req, res) => {
     if (allowance < amount) {
       return res.status(400).json({ error: 'Insufficient allowance' });
     }
-
+    if (to && !isValidAddressFormat(to)) {
+      return res.status(400).json({ error: 'Invalid Public address format' });
+    }
     const event = await sendEvent({
       type: 'coin.transferFrom',
       data: { coinId, from, to, amount },

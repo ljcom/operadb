@@ -1,5 +1,6 @@
 const { sendEvent } = require('../utils/eventSender');
 const { findFromGateway } = require('../utils/gatewayQuery');
+const { isValidAddressFormat } = require('../utils/idNaming');
 
 exports.issueData = async (req, res) => {
   try {
@@ -35,7 +36,9 @@ exports.issueData = async (req, res) => {
     if (existing?.length) {
       return res.status(409).json({ error: 'Data already issued to this address' });
     }
-
+    if (to && !isValidAddressFormat(to)) {
+      return res.status(400).json({ error: 'Invalid Public address format' });
+    }
     // Kirim event data.issue
     const result = await sendEvent({
       type: 'data.issue',

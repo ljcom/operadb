@@ -14,6 +14,7 @@ const accountId = process.env.ACCOUNT_ID;
     console.log('🪙 USER1 - Create Coin...');
     const createCoinRes = await axios.post(`${API_URL}/coins?account=${accountId}`, {
       name: 'Test Coin',
+      schemaId: 'coin',
       symbol: 'TCN',
       decimals: 2,
       totalSupply: 1000,
@@ -26,7 +27,7 @@ const accountId = process.env.ACCOUNT_ID;
       }
     });
 
-    const coinId = createCoinRes.data.schemaId || createCoinRes.data.coinId;
+    const coinId = createCoinRes.data?.event?.data?.coinId;
     console.log('✅ Coin created:', coinId);
 
     // 2. USER1 transfer 300 ke USER2

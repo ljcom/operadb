@@ -1,6 +1,6 @@
 const { sendEvent } = require('../utils/eventSender');
 const { findFromGateway } = require('../utils/gatewayQuery');
-const { generateId, parseId, generateScopedId } = require('../utils/idNaming');
+const { generateId, parseId, generateScopedId, isValidAddressFormat } = require('../utils/idNaming');
 
 // 1. Mint asset
 exports.mintAsset = async (req, res) => {
@@ -27,9 +27,7 @@ exports.mintAsset = async (req, res) => {
       return res.status(400).json({ error: 'Invalid schemaId or not for asset' });
     }
 
-    // Ambil type dan asset_mode (formatType) dari schema
     const type = schemaId1.split(':')[2];
-    const asset_mode = schema.state[schemaId1].formatType;
 
     // Validasi field metadata terhadap schema.fields
     const fields = schema.state[schemaId1].fields || [];
@@ -42,41 +40,35 @@ exports.mintAsset = async (req, res) => {
     // Generate assetId
     const assetId = await generateScopedId('obj', accountId, 'asset', type, metadata?.name || actor);
 
-    // Validasi berdasarkan asset_mode
-    if (!['actor', 'unique', 'commodity'].includes(asset_mode)) {
-      return res.status(400).json({ error: 'Invalid asset_mode: must be actor, unique, or commodity' });
+    const fullEntityType = schema.state[schemaId1]?.entityType;
+    if (!['asset.unique', 'asset.commodity', 'actor.people'].includes(fullEntityType)) {
+      return res.status(400).json({ error: 'Invalid entityType for minting' });
     }
 
     let qty1 = null;
-    if (asset_mode === 'actor') {
-      if (qty) {
-        return res.status(400).json({ error: 'actor mode cannot include "qty"' });
-      }
-    }
 
-    if (asset_mode === 'unique') {
+
+    if (fullEntityType === 'asset.unique') {
       if ( qty > 1) {
         return res.status(400).json({ error: 'unique mode requires qty = 1' });
       }
       qty1 = 1;
     }
 
-    if (asset_mode === 'commodity') {
+    if (fullEntityType === 'asset.commodity') {
       if ( qty == null || qty < 0) {
         return res.status(400).json({ error: 'commodity mode requires qty > 0' });
       }
       qty1 = qty;
     }
 
-    if (asset_mode !== 'actor' && qty === 0) {
-        const existing = await findFromGateway('states', {
-            entityType: 'asset',
-            entityId: assetId
-        });
+    const existing = await findFromGateway('states', {
+        entityType: 'asset',
+        entityId: assetId
+    });
 
-        if (existing?.length) {
-            return res.status(400).json({ error: 'Mint qty = 0 only allowed when creating new asset' });
-        }
+    if (existing?.length) {
+        return res.status(400).json({ error: 'Mint qty = 0 only allowed when creating new asset' });
     }
 
     // Validasi to jika ada
@@ -86,7 +78,9 @@ exports.mintAsset = async (req, res) => {
         return res.status(400).json({ error: 'Invalid "to" format. Expected user: or account:' });
       }
     }
-
+    if (to && !isValidAddressFormat(to)) {
+      return res.status(400).json({ error: 'Invalid Public address format' });
+    }
     // Kirim event
     const result = await sendEvent({
       type: 'asset.mint',
@@ -94,7 +88,6 @@ exports.mintAsset = async (req, res) => {
         assetId,
         schemaId,
         type,
-        asset_mode,
         qty: qty1,
         to,
         metadata
@@ -137,6 +130,9 @@ exports.burnAsset = async (req, res) => {
 
     if (!qty && ownedQty <= 0) {
       return res.status(400).json({ error: 'You do not own this asset' });
+    }
+    if (actor && !isValidAddressFormat(actor)) {
+      return res.status(400).json({ error: 'Invalid Public address format' });
     }
 
     const result = await sendEvent({
@@ -185,7 +181,9 @@ exports.transferAsset = async (req, res) => {
     if (qty != null && qty <= 0) {
         return res.status(400).json({ error: 'Transfer qty must be > 0' });
     }
-
+    if (to && !isValidAddressFormat(to)) {
+      return res.status(400).json({ error: 'Invalid Public address format' });
+    }
     const result = await sendEvent({
       type: 'asset.transfer',
       data: { assetId, from: actor, to, qty: qty || 1 },

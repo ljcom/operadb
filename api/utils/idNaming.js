@@ -105,7 +105,7 @@ async function validateId(id, accountId = null) {
 
   const { type, value } = parsed;
 
-  // 1. Cek format Ethereum address
+  // 1. Cek format public address
   if (type === 'addr') {
     return isValidAddressFormat(value);
   }

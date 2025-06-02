@@ -1,13 +1,13 @@
 const { sendEvent } = require('../utils/eventSender');
-const { generateScopedId } = require('../utils/idNaming');
+const { generateScopedId, isValidAddressFormat } = require('../utils/idNaming');
 const { findFromGateway } = require('../utils/gatewayQuery');
 const bcrypt = require('bcrypt');
 
 async function createUserData(body, actor, accountId, req, res) {
   try{  
-    const { username, email, password, group } = body;
+    const { username, email, password, group, address } = body;
 
-      if (!username || !password) return res.status(400).json({ error: 'Missing username or password' });
+      if (!username || !password || !address) return res.status(400).json({ error: 'Missing username, public address or password' });
 
       // CEK EXISTING USER DI STATE
       const state = await findFromGateway('states', {
@@ -19,7 +19,9 @@ async function createUserData(body, actor, accountId, req, res) {
       if (users.some(u => u.username === username)) {
         return { status: 409, error: 'User already exists' };
       }
-
+      if (address && !isValidAddressFormat(address)) {
+        return res.status(400).json({ error: 'Invalid Public address format' });
+      }
       const userId = await generateScopedId('usr', accountId.split(':')[1], 'user', username);
       const passwordHash = await bcrypt.hash(password, 10);
 
@@ -29,6 +31,7 @@ async function createUserData(body, actor, accountId, req, res) {
           userId,
           username,
           email,
+          address,
           passwordHash,
           group
         },

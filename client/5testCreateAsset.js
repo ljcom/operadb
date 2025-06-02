@@ -12,18 +12,9 @@ const headers = {
 
 const assets = [
   {
-    schemaId: 'customer',
-    payload: {
-      customer_id: 'CUST001',
-      name: 'PT. Sukses Selalu',
-      city: 'Jakarta',
-      phone: '08123456789'
-    }
-  },
-  {
     schemaId: 'certificate',
     payload: {
-      cert_id: 'CERT-A01',
+      assetId: 'CERT-A01',
       name: 'ISO 9001',
       issued_at: '2024-06-01'
     }
@@ -31,7 +22,7 @@ const assets = [
   {
     schemaId: 'product',
     payload: {
-      product_id: 'PRD-01',
+      assetId: 'PRD-01',
       name: 'Sabun Cair',
       unit: 'L',
       qty: 0

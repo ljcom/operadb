@@ -7,27 +7,52 @@ const defaultFieldsMap = {
     { name: 'symbol', type: 'string', required: true },
     { name: 'decimals', type: 'number', required: true },
     { name: 'totalSupply', type: 'number', required: true },
-    { name: 'to', type: 'string', required: false }
+    { name: 'to', type: 'address', required: false }
   ],
-  asset: [
+  "actor.org": [
+    { name: 'actorId', type: 'string', required: true },
+    { name: 'name', type: 'string', required: true },
+    { name: "represented", type: "string", required: true }, //only org (orgId)
+    { name: "address", type: "address", required: false },
+    { name: "pic", type: "array", required: false },  //only org
+    { name: "label", type: "string", required: false },
+    { name: "note", type: "string", required: false },
+    { name: "status", type: "string", required: false } //0, 100, 400, 500
+  ],
+  "actor.people": [
+    { name: 'actorId', type: 'string', required: true },
+    { name: 'name', type: 'string', required: true },
+    { name: "address", type: "address", required: false },
+    { name: "label", type: "string", required: false },
+    { name: "note", type: "string", required: false },
+    { name: "status", type: "string", required: false } //0, 100, 400, 500
+  ],
+  "asset.unique": [
     { name: 'assetId', type: 'string', required: true },
     { name: 'name', type: 'string', required: true },
-    { name: 'qty', type: 'number', required: true },
-    { name: 'formatType', type: 'string', required: true },
-    { name: 'unit', type: 'string', required: false }
+    { name: 'owner', type: 'address', required: false },
+  ],
+  "asset.commodity": [
+    { name: 'assetId', type: 'string', required: true },
+    { name: 'name', type: 'string', required: true },
+    { name: 'qty', type: 'number', required: false },
+    { name: 'unit', type: 'string', required: false },
+    { name: 'owner', type: 'address', required: false },
   ],
   contract: [
     { name: 'contractId', type: 'string', required: true },
     { name: 'title', type: 'string', required: true },
-    { name: 'partyA', type: 'string', required: true },
-    { name: 'partyB', type: 'string', required: true },
+    { name: 'partyA', type: 'address', required: true },
+    { name: 'partyB', type: 'address', required: true },
     { name: 'effectiveDate', type: 'date', required: false },
-    { name: 'expiryDate', type: 'date', required: false }
+    { name: 'expiryDate', type: 'date', required: false },
+    { name: "status", type: "string", required: false } //0, 100, 400, 500
   ],
   data: [
     { name: 'dataId', type: 'string', required: true },
     { name: 'source', type: 'string', required: true },
     { name: 'value', type: 'string', required: true },
+    { name: 'owner', type: 'address', required: false },
     { name: 'timestamp', type: 'datetime', required: false }
   ]
 };
@@ -35,7 +60,7 @@ const defaultFieldsMap = {
 exports.createSchema = async (req, res) => {
   try {
     const { schemaId, description, fields, reducerCode, entityType,
-        version, workflow, formatType } = req.body;
+      version, workflow } = req.body;
 
     const accountId = req.accountId;
     const actor = req.user.id;
@@ -43,10 +68,14 @@ exports.createSchema = async (req, res) => {
     if (!fields || !entityType || !version || !reducerCode) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
+    // validasi entityType
+    if (!defaultFieldsMap[entityType]) {
+      return res.status(400).json({ error: `Invalid or unsupported entityType: ${entityType}` });
+    }
 
     if (!isValidIdFormat(schemaId)) {
       return res.status(400).json({ error: 'Invalid SchemaId format (3-16 lowercase chars)' });
-    }  
+    }
     //const schemaId1 = `mod:${accountId.split(':')[1]}:${schemaId}`;
     const schemaId1 = await generateScopedId('mod', accountId.split(':')[1], 'schema', schemaId);
 
@@ -56,17 +85,7 @@ exports.createSchema = async (req, res) => {
       refId: schemaId1
     });
     if (existing && existing.length > 0) {
-      return res.status(409).json({ error: `Schema ${schemaId} already exists`});
-    }
-
-    if (!entityType || !['coin', 'asset', 'contract', 'data'].includes(entityType)) {
-      return res.status(400).json({ error: 'Missing or invalid entityType' });
-    }
-
-    if (entityType=='asset') {
-      if (!formatType || !['actor', 'unique', 'commodity'].includes(formatType)) {
-        return res.status(400).json({ error: 'Missing or invalid formatType' });
-      }
+      return res.status(409).json({ error: `Schema ${schemaId} already exists` });
     }
 
     if (defaultFieldsMap[entityType]) {
@@ -74,9 +93,27 @@ exports.createSchema = async (req, res) => {
 
       for (const def of defaultFieldsMap[entityType]) {
         const match = fieldMap[def.name];
-        if (!match || match.type !== def.type) {
+
+        if (!match) {
           return res.status(400).json({
-            error: `Missing or incorrect required field for ${entityType}: ${def.name} (type: ${def.type})`
+            error: `Missing required field for ${entityType}: ${def.name}`
+          });
+        }
+
+        if (typeof match.type !== 'string') {
+          return res.status(400).json({
+            error: `Field '${def.name}' missing or invalid 'type'`
+          });
+        }
+
+        const typeMatch = (
+          def.type === match.type ||
+          (def.type === 'address' && match.type === 'string') // fallback
+        );
+
+        if (!typeMatch) {
+          return res.status(400).json({
+            error: `Incorrect type for field '${def.name}'. Expected: ${def.type}, got: ${match.type}`
           });
         }
       }
@@ -102,12 +139,19 @@ exports.createSchema = async (req, res) => {
       }
     }
 
+    const fieldNames = new Set();
+    for (const field of fields) {
+      if (fieldNames.has(field.name)) {
+        return res.status(400).json({ error: `Duplicate field name: ${field.name}` });
+      }
+      fieldNames.add(field.name);
+    }
+
     const result = await sendEvent({
       type: 'schema.create',
       data: {
-        schemaId:schemaId1,
+        schemaId: schemaId1,
         entityType,
-        formatType,
         description,
         fields,
         reducerCode,
