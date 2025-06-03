@@ -1,11 +1,12 @@
 const express = require('express');
 const router = express.Router();
 const schemaController = require('../controllers/schemas.controller');
+const accountResolver = require('../middlewares/accountResolver');
 
 const GATEWAY = process.env.MONGO_GATEWAY_URL;
 const SECRET = process.env.GATEWAY_SECRET;
 
-router.post('/', schemaController.createSchema);
+router.post('/', accountResolver, schemaController.createSchema);
 
 // GET /schemas → semua schema
 router.get('/', async (req, res) => {

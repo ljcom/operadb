@@ -2,7 +2,7 @@ const path = require('path'); // ⬅️ Tambahkan ini
 require('dotenv').config({ path: path.resolve(__dirname, '.env') });
 
 const express = require('express');
-
+const cors = require('cors');    
 if (!process.env.JWT_SECRET) {
   throw new Error('❌ Missing JWT_SECRET in .env');
 }
@@ -12,13 +12,13 @@ console.log(`📤 Sending event via: ${MODE}`);
 
 module.exports = function () {
   const app = express();
-
+  app.use(cors());
   // Middleware global
   app.use(express.json());
 
   //middleware imports
   const authMiddleware = require('./middlewares/auth');
-  const accountResolver = require('./middlewares/accountResolver');
+  //const accountResolver = require('./middlewares/accountResolver');
 
   // Route imports
   const eventRoutes = require('./routes/events.route');
@@ -40,20 +40,20 @@ module.exports = function () {
   // Routes
   app.use('/accounts', accountRoutes);
 
-  app.use('/events', [authMiddleware, accountResolver], eventRoutes);
-  app.use('/schemas', [authMiddleware, accountResolver], schemaRoutes);
-  app.use('/groups', [authMiddleware, accountResolver], groupRoutes);
-  app.use('/users', [authMiddleware, accountResolver], userRoutes);
+  app.use('/events', eventRoutes);
+  app.use('/schemas', schemaRoutes);
+  app.use('/groups', authMiddleware, groupRoutes);
+  app.use('/users', authMiddleware, userRoutes);
   
-  app.use('/coins', [authMiddleware, accountResolver], coinRoutes);
-  app.use('/assets', [authMiddleware, accountResolver], assetRoutes);
-  app.use('/data', [authMiddleware, accountResolver], dataRoutes);
-  app.use('/actors', [authMiddleware, accountResolver], actorRoutes);
-  app.use('/contracts', [authMiddleware, accountResolver], contractRoutes);
+  app.use('/coins', authMiddleware, coinRoutes);
+  app.use('/assets', authMiddleware, assetRoutes);
+  app.use('/data', authMiddleware, dataRoutes);
+  app.use('/actors', authMiddleware, actorRoutes);
+  app.use('/contracts', authMiddleware, contractRoutes);
 
   console.log('✅ /accounts routes registered');
   app.use('/login', authRoutes);
-  app.use('/states', authMiddleware, stateRoutes);
+  app.use('/states', stateRoutes);
 
   // Default route
   app.get('/', (req, res) => res.send('OperaDB API is running.'));

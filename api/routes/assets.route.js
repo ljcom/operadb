@@ -4,7 +4,7 @@ const controller = require('../controllers/assets.controller');
 const accountResolver = require('../middlewares/accountResolver');
 const auth = require('../middlewares/auth');
 
-router.post('/mint', controller.mintAsset);
+router.post('/mint', accountResolver, controller.mintAsset);
 router.post('/burn', controller.burnAsset);
 router.post('/transfer', controller.transferAsset);
 router.get('/balance/:address', controller.getOwnedAssets);

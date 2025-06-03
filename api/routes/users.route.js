@@ -1,10 +1,11 @@
 const express = require('express');
 const router = express.Router();
 const userController = require('../controllers/users.controller');
+const accountResolver = require('../middlewares/accountResolver');
 const { findFromGateway } = require('../utils/gatewayQuery');
 
 // CREATE user via event
-router.post('/', userController.createUser);
+router.post('/', accountResolver, userController.createUser);
 
 // GET all users (from state)
 router.get('/', async (req, res) => {

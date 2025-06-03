@@ -4,7 +4,7 @@ const controller = require('../controllers/coins.controller');
 const accountResolver = require('../middlewares/accountResolver');
 const auth = require('../middlewares/auth');
 
-router.post('/', controller.createCoin);
+router.post('/', accountResolver, controller.createCoin);
 
 router.post('/mint', controller.mintCoin);
 router.post('/burn', controller.burnCoin);

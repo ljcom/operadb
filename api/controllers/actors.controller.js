@@ -13,7 +13,7 @@ exports.registerActor = async (req, res) => {
       return res.status(400).json({ error: 'Missing required field: actorType, role, or represented' });
     }
 
-    const actorId = await generateScopedId('act', accountId, role, represented);
+    const actorId = await generateScopedId('act', accountId.split(':')[1], role, represented);
 
     if (address && !isValidAddressFormat(address)) {
       return res.status(400).json({ error: 'Invalid Public address format' });

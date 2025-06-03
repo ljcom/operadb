@@ -113,9 +113,10 @@ async function validateId(id, accountId = null) {
   if (type === 'coin') {
     const result = await findFromGateway('states', {
       entityType: 'coin',
-      entityId: id
+      refId: id
     });
-    return result && result.length > 0;
+
+    return result?.length > 0;
   }
 
   // 2. Jika account/org → cek apakah state-nya ada

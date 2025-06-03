@@ -28,9 +28,10 @@ const accountId = process.env.ACCOUNT_ID;
     });
 
     const coinId = createCoinRes.data?.event?.data?.coinId;
-    console.log('✅ Coin created:', coinId);
+    console.log('✅ Coin created:', createCoinRes.data);
 
     // 2. USER1 transfer 300 ke USER2
+    // TO DO ❌ Error: { error: 'Invalid recipient ID' }
     console.log('\n🔁 USER1 → USER2 Transfer 300...');
     await axios.post(`${API_URL}/coins/transfer`, {
       to: USER2_ADDRESS,

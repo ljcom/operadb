@@ -38,7 +38,7 @@ exports.mintAsset = async (req, res) => {
     }
 
     // Generate assetId
-    const assetId = await generateScopedId('obj', accountId, 'asset', type, metadata?.name || actor);
+    const assetId = await generateScopedId('obj', accountId.split(':')[1], 'asset', type, metadata?.name || actor);
 
     const fullEntityType = schema.state[schemaId1]?.entityType;
     if (!['asset.unique', 'asset.commodity', 'actor.people'].includes(fullEntityType)) {

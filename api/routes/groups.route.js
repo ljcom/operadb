@@ -1,13 +1,14 @@
 const express = require('express');
 const router = express.Router();
 const controller = require('../controllers/groups.controller');
+const accountResolver = require('../middlewares/accountResolver');
 //const requireAccountContext = require('../middlewares/requireAccountContext');
 
 // Semua route di bawah ini harus dalam konteks account
 //router.use(requireAccountContext);
 
 // Lihat semua group dalam account
-router.get('/', controller.getGroups);
+router.get('/', accountResolver, controller.getGroups);
 
 // Buat group baru (name ≤ 10 char, no space, unique)
 router.post('/create', controller.createGroup);

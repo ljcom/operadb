@@ -62,7 +62,7 @@ exports.createContract = async (req, res) => {
     if (to && !isValidAddressFormat(to)) {
       return res.status(400).json({ error: 'Invalid Public address format' });
     }
-    const contractId = await generateScopedId('trx', accountId, type, subject);
+    const contractId = await generateScopedId('trx', accountId.split(':')[1], type, subject);
 
     const result = await sendEvent({
       type: 'contract.create',

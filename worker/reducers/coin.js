@@ -1,11 +1,6 @@
 exports.replay = function (events) {
-  const state = {
-    balances: {},
-    allowance: {},
-    totalSupply: 0,
-    coinId: null,
-    creator: null
-  };
+  let currentId = null;
+  const stateMap = {};
 
   for (const event of events) {
     const { type, data, actor } = event;
@@ -13,59 +8,80 @@ exports.replay = function (events) {
     switch (type) {
       case 'coin.create': {
         if (data.coinId && data.coinId.startsWith('coin')) {
-          state.coinId = data.coinId;
-          state.creator = data.creator || actor;
+          currentId = data.coinId;
+          stateMap[currentId] = {
+            balances: {},
+            allowance: {},
+            totalSupply: data.totalSupply || 0,
+            coinId: data.coinId,
+            creator: data.creator || actor,
+            entityType: 'coin'
+          };
+
+          // Optional: langsung isi balance jika `to` tersedia
+          if (data.to && data.totalSupply > 0) {
+            stateMap[currentId].balances[data.to] = data.totalSupply;
+          }
         }
         break;
       }
 
-      case 'coin.mint': {
-        const { to, amount } = data;
-        state.balances[to] = (state.balances[to] || 0) + amount;
-        state.totalSupply += amount;
-        break;
-      }
-
-      case 'coin.burn': {
-        const { from, amount } = data;
-        if ((state.balances[from] || 0) >= amount) {
-          state.balances[from] -= amount;
-          state.totalSupply -= amount;
-        }
-        break;
-      }
-
-      case 'coin.transfer': {
-        const { from, to, amount } = data;
-        if ((state.balances[from] || 0) >= amount) {
-          state.balances[from] -= amount;
-          state.balances[to] = (state.balances[to] || 0) + amount;
-        }
-        break;
-      }
-
-      case 'coin.approve': {
-        const { owner, spender, amount } = data;
-        state.allowance[owner] = state.allowance[owner] || {};
-        state.allowance[owner][spender] = amount;
-        break;
-      }
-
+      case 'coin.mint':
+      case 'coin.burn':
+      case 'coin.transfer':
+      case 'coin.approve':
       case 'coin.transferFrom': {
-        const { from, to, amount } = data;
-        const spender = actor;
-        const allowed = state.allowance[from]?.[spender] || 0;
-        const balance = state.balances[from] || 0;
+        const id = data.coinId || currentId;
+        if (!stateMap[id]) continue;
 
-        if (allowed >= amount && balance >= amount) {
-          state.allowance[from][spender] -= amount;
-          state.balances[from] -= amount;
-          state.balances[to] = (state.balances[to] || 0) + amount;
+        const s = stateMap[id];
+        switch (type) {
+          case 'coin.mint': {
+            const { to, amount } = data;
+            s.balances[to] = (s.balances[to] || 0) + amount;
+            s.totalSupply += amount;
+            break;
+          }
+          case 'coin.burn': {
+            const { from, amount } = data;
+            if ((s.balances[from] || 0) >= amount) {
+              s.balances[from] -= amount;
+              s.totalSupply -= amount;
+            }
+            break;
+          }
+          case 'coin.transfer': {
+            const { from, to, amount } = data;
+            if ((s.balances[from] || 0) >= amount) {
+              s.balances[from] -= amount;
+              s.balances[to] = (s.balances[to] || 0) + amount;
+            }
+            break;
+          }
+          case 'coin.approve': {
+            const { owner, spender, amount } = data;
+            s.allowance[owner] = s.allowance[owner] || {};
+            s.allowance[owner][spender] = amount;
+            break;
+          }
+          case 'coin.transferFrom': {
+            const { from, to, amount } = data;
+            const spender = actor;
+            const allowed = s.allowance[from]?.[spender] || 0;
+            const balance = s.balances[from] || 0;
+
+            if (allowed >= amount && balance >= amount) {
+              s.allowance[from][spender] -= amount;
+              s.balances[from] -= amount;
+              s.balances[to] = (s.balances[to] || 0) + amount;
+            }
+            break;
+          }
         }
         break;
       }
     }
   }
 
-  return state;
+  return stateMap;
 };
