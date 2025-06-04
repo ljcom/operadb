@@ -59,24 +59,20 @@ export default function StudioLayout({ isLoggedIn = true, userName = "User" }) {
   };
   const userNameStyle = { fontSize: "12px", color: "#555555" };
 
-  const mainStyle = {
+  
+  const mainContainer = {
     flex: 1,
     display: "flex",
     flexDirection: "column",
     overflow: "auto",
   };
+  
   const headerStyle = {
     backgroundColor: "#FFFFFF",
     borderBottom: "1px solid #E0E0E0",
     padding: "16px 32px",
     display: "flex",
     alignItems: "center",
-  };
-  const titleStyle = {
-    fontSize: "32px",
-    fontWeight: 600,
-    margin: 0,
-    color: "#222222",
   };
   const contentStyle = {
     padding: "24px 32px",
@@ -168,29 +164,15 @@ export default function StudioLayout({ isLoggedIn = true, userName = "User" }) {
         )}
       </aside>
 
-      {/* Main content */}
-      <div style={mainStyle}>
+      {/* Main section (header + Outlet) */}
+      <div style={mainContainer}>
         <header style={headerStyle}>
-          <h1 style={titleStyle}>Studio</h1>
+          <h1 style={{ fontSize: "32px", fontWeight: 600, margin: 0, color: "#222" }}>
+            Studio
+          </h1>
         </header>
-
         <main style={contentStyle}>
-          <section style={{ marginBottom: "32px" }}>
-            <h2
-              style={{
-                fontSize: "24px",
-                margin: "0 0 8px 0",
-                color: "#333333",
-              }}
-            >
-              Selamat datang, {isLoggedIn ? userName : "Tamu"}!
-            </h2>
-            <p style={{ color: "#555555", margin: 0 }}>
-              Di sini Anda dapat mengelola semua fitur Studio.
-            </p>
-          </section>
-
-          {/* Outlet untuk merender halaman anak (Dashboard, Accounts, dll.) */}
+          {/* Outlet saja—tidak ada lagi teks “Selamat datang” di Layout */}
           <Outlet />
         </main>
       </div>
