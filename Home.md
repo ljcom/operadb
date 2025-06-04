@@ -1,1 +1,0 @@
-operaDB Wiki

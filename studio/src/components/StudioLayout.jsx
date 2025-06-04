@@ -1,0 +1,199 @@
+// src/components/StudioLayout.jsx
+import React from "react";
+import { Link, Outlet, useLocation } from "react-router-dom";
+import {
+  Home,
+  Users,
+  Layout,
+  Database,
+  Settings as SettingsIcon,
+  User as UserIcon,
+} from "lucide-react";
+
+export default function StudioLayout({ isLoggedIn = true, userName = "User" }) {
+  const location = useLocation();
+
+  const containerStyle = {
+    display: "flex",
+    height: "100vh",
+    backgroundColor: "#F5F5F5",
+    fontFamily: "system-ui, -apple-system, BlinkMacSystemFont, sans-serif",
+  };
+  const sidebarStyle = {
+    width: "80px",
+    backgroundColor: "#FFFFFF",
+    borderRight: "1px solid #E0E0E0",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    paddingTop: "20px",
+    boxSizing: "border-box",
+    position: "relative",
+  };
+  const menuListStyle = {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    gap: "32px",
+  };
+  const iconButtonStyle = {
+    width: "36px",
+    height: "36px",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    cursor: "pointer",
+    transition: "color 0.2s",
+  };
+  const activeIconStyle = { color: "#000000" };
+  const inactiveIconStyle = { color: "#555555" };
+  const linkWrapper = { textDecoration: "none" };
+
+  const footerStyle = {
+    position: "absolute",
+    bottom: "20px",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    gap: "8px",
+  };
+  const userNameStyle = { fontSize: "12px", color: "#555555" };
+
+  const mainStyle = {
+    flex: 1,
+    display: "flex",
+    flexDirection: "column",
+    overflow: "auto",
+  };
+  const headerStyle = {
+    backgroundColor: "#FFFFFF",
+    borderBottom: "1px solid #E0E0E0",
+    padding: "16px 32px",
+    display: "flex",
+    alignItems: "center",
+  };
+  const titleStyle = {
+    fontSize: "32px",
+    fontWeight: 600,
+    margin: 0,
+    color: "#222222",
+  };
+  const contentStyle = {
+    padding: "24px 32px",
+  };
+
+  return (
+    <div style={containerStyle}>
+      {/* Sidebar */}
+      <aside style={sidebarStyle}>
+        <nav style={menuListStyle}>
+          <Link to="/dashboard" style={linkWrapper}>
+            <div
+              style={{
+                ...iconButtonStyle,
+                ...(location.pathname === "/dashboard"
+                  ? activeIconStyle
+                  : inactiveIconStyle),
+              }}
+              title="Home"
+            >
+              <Home size={24} />
+            </div>
+          </Link>
+
+          <Link to="/dashboard/accounts" style={linkWrapper}>
+            <div
+              style={{
+                ...iconButtonStyle,
+                ...(location.pathname.startsWith("/dashboard/accounts")
+                  ? activeIconStyle
+                  : inactiveIconStyle),
+              }}
+              title="Accounts"
+            >
+              <Users size={24} />
+            </div>
+          </Link>
+
+          <Link to="/dashboard/schemas" style={linkWrapper}>
+            <div
+              style={{
+                ...iconButtonStyle,
+                ...(location.pathname.startsWith("/dashboard/schemas")
+                  ? activeIconStyle
+                  : inactiveIconStyle),
+              }}
+              title="Schemas"
+            >
+              <Layout size={24} />
+            </div>
+          </Link>
+
+          <Link to="/dashboard/data-explorer" style={linkWrapper}>
+            <div
+              style={{
+                ...iconButtonStyle,
+                ...(location.pathname.startsWith("/dashboard/data-explorer")
+                  ? activeIconStyle
+                  : inactiveIconStyle),
+              }}
+              title="Data Explorer"
+            >
+              <Database size={24} />
+            </div>
+          </Link>
+
+          <Link to="/dashboard/settings" style={linkWrapper}>
+            <div
+              style={{
+                ...iconButtonStyle,
+                ...(location.pathname.startsWith("/dashboard/settings")
+                  ? activeIconStyle
+                  : inactiveIconStyle),
+              }}
+              title="Settings"
+            >
+              <SettingsIcon size={24} />
+            </div>
+          </Link>
+        </nav>
+
+        {isLoggedIn && (
+          <div style={footerStyle}>
+            <div style={{ ...iconButtonStyle, ...inactiveIconStyle }} title={userName}>
+              <UserIcon size={24} />
+            </div>
+            <div style={userNameStyle}>{userName}</div>
+          </div>
+        )}
+      </aside>
+
+      {/* Main content */}
+      <div style={mainStyle}>
+        <header style={headerStyle}>
+          <h1 style={titleStyle}>Studio</h1>
+        </header>
+
+        <main style={contentStyle}>
+          <section style={{ marginBottom: "32px" }}>
+            <h2
+              style={{
+                fontSize: "24px",
+                margin: "0 0 8px 0",
+                color: "#333333",
+              }}
+            >
+              Selamat datang, {isLoggedIn ? userName : "Tamu"}!
+            </h2>
+            <p style={{ color: "#555555", margin: 0 }}>
+              Di sini Anda dapat mengelola semua fitur Studio.
+            </p>
+          </section>
+
+          {/* Outlet untuk merender halaman anak (Dashboard, Accounts, dll.) */}
+          <Outlet />
+        </main>
+      </div>
+    </div>
+  );
+}
