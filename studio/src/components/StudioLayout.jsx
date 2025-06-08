@@ -1,5 +1,5 @@
 // src/components/StudioLayout.jsx
-import React from "react";
+import React, { useContext, useEffect } from "react";
 import { Link, Outlet, useLocation } from "react-router-dom";
 import {
   Home,
@@ -8,10 +8,13 @@ import {
   Database,
   Settings as SettingsIcon,
   User as UserIcon,
+  X
 } from "lucide-react";
+import { AccountContext } from '../utils/AccountContext';
 
 export default function StudioLayout({ isLoggedIn = true, userName = "User" }) {
   const location = useLocation();
+  const { selectedAccount, setSelectedAccount } = useContext(AccountContext);
 
   const containerStyle = {
     display: "flex",
@@ -59,24 +62,30 @@ export default function StudioLayout({ isLoggedIn = true, userName = "User" }) {
   };
   const userNameStyle = { fontSize: "12px", color: "#555555" };
 
-  
   const mainContainer = {
     flex: 1,
     display: "flex",
     flexDirection: "column",
     overflow: "auto",
   };
-  
+
   const headerStyle = {
     backgroundColor: "#FFFFFF",
     borderBottom: "1px solid #E0E0E0",
     padding: "16px 32px",
     display: "flex",
     alignItems: "center",
+    justifyContent: "space-between",
   };
   const contentStyle = {
     padding: "24px 32px",
   };
+
+  useEffect(() => {
+    document.title = selectedAccount
+      ? `Studio - ${selectedAccount}`
+      : 'Studio';
+  }, [selectedAccount]);
 
   return (
     <div style={containerStyle}>
@@ -110,34 +119,36 @@ export default function StudioLayout({ isLoggedIn = true, userName = "User" }) {
               <Users size={24} />
             </div>
           </Link>
-
-          <Link to="/dashboard/schemas" style={linkWrapper}>
-            <div
-              style={{
-                ...iconButtonStyle,
-                ...(location.pathname.startsWith("/dashboard/schemas")
-                  ? activeIconStyle
-                  : inactiveIconStyle),
-              }}
-              title="Schemas"
-            >
-              <Layout size={24} />
-            </div>
-          </Link>
-
-          <Link to="/dashboard/data-explorer" style={linkWrapper}>
-            <div
-              style={{
-                ...iconButtonStyle,
-                ...(location.pathname.startsWith("/dashboard/data-explorer")
-                  ? activeIconStyle
-                  : inactiveIconStyle),
-              }}
-              title="Data Explorer"
-            >
-              <Database size={24} />
-            </div>
-          </Link>
+          {selectedAccount && (
+            <Link to="/dashboard/schemas" style={linkWrapper}>
+              <div
+                style={{
+                  ...iconButtonStyle,
+                  ...(location.pathname.startsWith("/dashboard/schemas")
+                    ? activeIconStyle
+                    : inactiveIconStyle),
+                }}
+                title="Schemas"
+              >
+                <Layout size={24} />
+              </div>
+            </Link>
+          )}
+          {selectedAccount && (
+            <Link to="/dashboard/data-explorer" style={linkWrapper}>
+              <div
+                style={{
+                  ...iconButtonStyle,
+                  ...(location.pathname.startsWith("/dashboard/data-explorer")
+                    ? activeIconStyle
+                    : inactiveIconStyle),
+                }}
+                title="Data Explorer"
+              >
+                <Database size={24} />
+              </div>
+            </Link>
+          )}
 
           <Link to="/dashboard/settings" style={linkWrapper}>
             <div
@@ -156,7 +167,10 @@ export default function StudioLayout({ isLoggedIn = true, userName = "User" }) {
 
         {isLoggedIn && (
           <div style={footerStyle}>
-            <div style={{ ...iconButtonStyle, ...inactiveIconStyle }} title={userName}>
+            <div
+              style={{ ...iconButtonStyle, ...inactiveIconStyle }}
+              title={userName}
+            >
               <UserIcon size={24} />
             </div>
             <div style={userNameStyle}>{userName}</div>
@@ -167,12 +181,23 @@ export default function StudioLayout({ isLoggedIn = true, userName = "User" }) {
       {/* Main section (header + Outlet) */}
       <div style={mainContainer}>
         <header style={headerStyle}>
-          <h1 style={{ fontSize: "32px", fontWeight: 600, margin: 0, color: "#222" }}>
-            Studio
-          </h1>
+          <div style={{ display: 'flex', alignItems: 'center' }}>
+            <h1
+              style={{ fontSize: "32px", fontWeight: 600, margin: 0, color: "#222" }}
+            >
+              {selectedAccount ? `Studio - ${selectedAccount}` : 'Studio'}
+            </h1>
+            {selectedAccount && (
+              <X
+                size={24}
+                style={{ cursor: "pointer", marginLeft: "8px", color: "#E53E3E" }}
+                title="Clear selected account"
+                onClick={() => setSelectedAccount(null)}
+              />
+            )}
+          </div>
         </header>
         <main style={contentStyle}>
-          {/* Outlet saja—tidak ada lagi teks “Selamat datang” di Layout */}
           <Outlet />
         </main>
       </div>

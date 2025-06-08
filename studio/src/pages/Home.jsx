@@ -1,7 +1,7 @@
 // src/pages/Home.jsx
 import React, { useContext, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { AuthContext } from "../utils/createAuthContext"; // named import
+import { AuthContext } from "../utils/AuthContext"; // named import
 
 export default function Home() {
   const navigate = useNavigate();

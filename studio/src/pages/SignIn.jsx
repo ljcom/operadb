@@ -2,7 +2,7 @@
 import React, { useState, useContext, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { generateCustomSeedPhrase, customSeedToPrivateKey } from "../utils/generateCustomSeed";
-import { AuthContext } from "../utils/createAuthContext";
+import { AuthContext } from "../utils/AuthContext";
 import { ethers } from "ethers";
 
 export default function SignIn() {

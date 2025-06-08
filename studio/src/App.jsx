@@ -2,7 +2,7 @@
 import React from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "./utils/AuthProvider";
-import { AuthContext } from "./utils/createAuthContext";
+import { AuthContext } from "./utils/AuthContext";
 
 import Home from "./pages/Home";
 import SignIn from "./pages/SignIn";

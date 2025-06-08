@@ -1,49 +1,51 @@
 // src/pages/Accounts.jsx
 import React, { useState, useContext, useEffect } from "react";
-import { AuthContext } from "../utils/createAuthContext";
+import { AuthContext } from "../utils/AuthContext";
+import { AccountContext } from '../utils/AccountContext';  // tepat
 
 export default function AccountsPage() {
   const { wallet, authToken } = useContext(AuthContext);
 
-  const [myAccounts, setMyAccounts]         = useState([]);
+  const [myAccounts, setMyAccounts] = useState([]);
   const [addressToSearch, setAddressToSearch] = useState("");
-  const [namespace, setNamespace]             = useState("");
-  const [email, setEmail]                     = useState("");
-  const [accountData, setAccountData]         = useState(null);
-  const [error, setError]                     = useState("");
-  const [loading, setLoading]                 = useState(false);
+  const [namespace, setNamespace] = useState("");
+  const [email, setEmail] = useState("");
+  const [accountData, setAccountData] = useState(null);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+  const { selectedAccount, setSelectedAccount } = useContext(AccountContext);
 
   const headers = {
     "Content-Type": "application/json",
     ...(authToken && { Authorization: `Bearer ${authToken}` })
   };
 
- // Fetch “My Accounts” via POST /accounts/me signature–based
- useEffect(() => {
-   if (!wallet) return;
-   const loadAccounts = async () => {
-     setError("");
-     setLoading(true);
-     try {
-       const timestamp = Math.floor(Date.now() / 1000);
-       const message   = `accounts.me:${timestamp}`;
-       const signature = await wallet.signMessage(message);
+  // Fetch “My Accounts” via POST /accounts/me signature–based
+  useEffect(() => {
+    if (!wallet) return;
+    const loadAccounts = async () => {
+      setError("");
+      setLoading(true);
+      try {
+        const timestamp = Math.floor(Date.now() / 1000);
+        const message = `accounts.me:${timestamp}`;
+        const signature = await wallet.signMessage(message);
 
-       const res = await fetch("http://localhost:3000/accounts/me", {
-         method: "POST",
-         headers: { "Content-Type": "application/json" },
-         body: JSON.stringify({ signature, timestamp })
-       });
-       const list = await res.json();
-       if (!res.ok) throw new Error(list.error || "Gagal memuat daftar akun");
-       setMyAccounts(list);
-     } catch (err) {
-       setError(err.message);
-     }
-     setLoading(false);
-   };
-   loadAccounts();
- }, [wallet]);
+        const res = await fetch("http://localhost:3000/accounts/me", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ signature, timestamp })
+        });
+        const list = await res.json();
+        if (!res.ok) throw new Error(list.error || "Gagal memuat daftar akun");
+        setMyAccounts(list);
+      } catch (err) {
+        setError(err.message);
+      }
+      setLoading(false);
+    };
+    loadAccounts();
+  }, [wallet]);
 
   // Cari account by ID/address
   const handleSearch = async e => {
@@ -65,18 +67,18 @@ export default function AccountsPage() {
       setAccountData(data);
 
 
-     // Setelah berhasil create, reload myAccounts
-     const ts2 = Math.floor(Date.now() / 1000);
-     const msg2 = `accounts.me:${ts2}`;
-     const sig2 = await wallet.signMessage(msg2);
-     const res2 = await fetch("http://localhost:3000/accounts/me", {
-       method: "POST",
-       headers: { "Content-Type": "application/json" },
-       body: JSON.stringify({ signature: sig2, timestamp: ts2 })
-     });
-     const list2 = await res2.json();
-     if (!res2.ok) throw new Error(list2.error || "Gagal memuat daftar akun");
-     setMyAccounts(list2);
+      // Setelah berhasil create, reload myAccounts
+      const ts2 = Math.floor(Date.now() / 1000);
+      const msg2 = `accounts.me:${ts2}`;
+      const sig2 = await wallet.signMessage(msg2);
+      const res2 = await fetch("http://localhost:3000/accounts/me", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ signature: sig2, timestamp: ts2 })
+      });
+      const list2 = await res2.json();
+      if (!res2.ok) throw new Error(list2.error || "Gagal memuat daftar akun");
+      setMyAccounts(list2);
 
     } catch (err) {
       setError(err.message);
@@ -86,11 +88,11 @@ export default function AccountsPage() {
 
   // Load detail akun aktif
   const handleLoadActive = async () => {
-        setError(""); setMyAccounts([]); setLoading(true);
+    setError(""); setMyAccounts([]); setLoading(true);
     try {
       // 1) Siapkan timestamp & message
       const timestamp = Math.floor(Date.now() / 1000);
-      const message   = `accounts.me:${timestamp}`;
+      const message = `accounts.me:${timestamp}`;
       // 2) Tanda tangani dengan PV-key
       const signature = await wallet.signMessage(message);
 
@@ -130,13 +132,13 @@ export default function AccountsPage() {
     try {
       // 1) Sign dengan format yang backend verifikasi
       const timestamp = Math.floor(Date.now() / 1000);
-      const message   = `account.create:${email}:${timestamp}`;
+      const message = `account.create:${email}:${timestamp}`;
       const signature = await wallet.signMessage(message);
-      const address   = wallet.address;
+      const address = wallet.address;
 
       // 2) Kirim ke backend
       const payload = { namespace, email, password: "dummy", address, signature, timestamp };
-      const res     = await fetch("http://localhost:3000/accounts", {
+      const res = await fetch("http://localhost:3000/accounts", {
         method: "POST",
         headers,
         body: JSON.stringify(payload)
@@ -165,13 +167,21 @@ export default function AccountsPage() {
         {myAccounts.length > 0 ? (
           myAccounts.map(acc => (
             <div key={acc.accountId}
-                 style={{
-                   padding: 8,
-                   border: "1px solid #CBD5E0",
-                   borderRadius: 4,
-                   marginBottom: 8
-                 }}>
-              <strong>{acc.accountId}</strong><br/>
+              onClick={() => {
+                console.log('clicked account', acc.accountId);
+                setSelectedAccount(acc.accountId);
+              }}
+              style={{
+                cursor: 'pointer',
+                padding: 8,
+                border: selectedAccount === acc.accountId
+                  ? '2px solid #3182CE'
+                  : '1px solid #CBD5E0',
+                borderRadius: 4,
+                marginBottom: 8,
+              }}
+            >
+              <strong>{acc.accountId}</strong><br />
               Groups: <em>{acc.groups}</em>
             </div>
           ))
@@ -202,7 +212,7 @@ export default function AccountsPage() {
       {/* Create New Account */}
       <h3>➕ Buat Akun Baru</h3>
       <form onSubmit={handleCreateAccount}
-            style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        style={{ display: "flex", flexDirection: "column", gap: 8 }}>
         <input
           value={namespace}
           onChange={e => setNamespace(e.target.value)}

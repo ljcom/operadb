@@ -1,7 +1,7 @@
 // src/pages/Unlock.jsx
 import React, { useState, useContext, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { AuthContext } from "../utils/createAuthContext";
+import { AuthContext } from "../utils/AuthContext";
 
 
 export default function Unlock() {

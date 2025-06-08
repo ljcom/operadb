@@ -1,6 +1,6 @@
 // src/utils/createAuthContext.jsx
 import React, { useState, useEffect } from "react";
-import { AuthContext }        from "./createAuthContext";
+import { AuthContext }        from "./AuthContext";
 import { Wallet } from "ethers";
 
 const STORAGE_KEY = "encryptedPrivateKey";

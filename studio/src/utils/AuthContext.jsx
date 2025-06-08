@@ -2,15 +2,21 @@
 import React, { createContext, useState, useEffect } from "react";
 import { Wallet } from "ethers";
 
-// 1) Export the context
-export const AuthContext = createContext({});
+// Context and Provider for authentication (unlocking keystore)
+export const AuthContext = createContext({
+  wallet: null,
+  walletAddress: null,
+  isAuthenticated: false,
+  login: async () => {},
+  logout: () => {}
+});
 
 export function AuthProvider({ children }) {
-  const [wallet, setWallet]             = useState(null);
-  const [walletAddress, setWalletAddress] = useState(null);
+  const [wallet, setWallet]                 = useState(null);
+  const [walletAddress, setWalletAddress]   = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
 
-  // on mount, if there’s a keystore, user still needs to unlock
+  // On mount, check if keystore exists: require unlock
   useEffect(() => {
     const encrypted = localStorage.getItem("encryptedPrivateKey");
     if (encrypted) {
@@ -19,18 +25,17 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
-  // 2) Provide a login(password) function
+  // Unlock keystore
   const login = async (password) => {
-    const encrypted = localStorage.getItem("encryptedPrivateKey");
-    if (!encrypted) {
-      throw new Error("Tidak ada data terenkripsi—silakan daftar ulang.");
-    }
-    const w = await Wallet.fromEncryptedJson(encrypted, password);
+    const raw = localStorage.getItem("encryptedPrivateKey");
+    if (!raw) throw new Error("Tidak ada data terenkripsi—silakan daftar ulang.");
+    const w = await Wallet.fromEncryptedJson(raw, password);
     setWallet(w);
     setWalletAddress(w.address);
     setIsAuthenticated(true);
   };
 
+  // Clear session
   const logout = () => {
     localStorage.removeItem("encryptedPrivateKey");
     setWallet(null);
@@ -44,3 +49,4 @@ export function AuthProvider({ children }) {
     </AuthContext.Provider>
   );
 }
+
