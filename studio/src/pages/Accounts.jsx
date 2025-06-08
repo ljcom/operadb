@@ -1,112 +1,149 @@
 // src/pages/Accounts.jsx
-import React, { useState } from "react";
+import React, { useState, useContext } from "react";
+import { AuthContext } from "../utils/createAuthContext";
 
 export default function AccountsPage() {
-  const [address, setAddress] = useState("");
+  const { wallet, authToken } = useContext(AuthContext);
+  const [addressToSearch, setAddressToSearch] = useState("");
+  const [namespace, setNamespace]   = useState("");
+  const [email, setEmail]           = useState("");
   const [accountData, setAccountData] = useState(null);
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [error, setError]           = useState("");
+  const [loading, setLoading]       = useState(false);
 
-  const handleSearch = async (e) => {
+  const headers = {
+    "Content-Type": "application/json",
+    ...(authToken && { Authorization: `Bearer ${authToken}` })
+  };
+
+  
+  const handleSearch = async e => {
     e.preventDefault();
-    setError("");
-    setAccountData(null);
+    setError(""); setAccountData(null);
+    if (!addressToSearch.trim()) {
+      return setError("Masukkan account ID atau address untuk dicari.");
+    }
+    setLoading(true);
+    try {
+      const res  = await fetch(
+        `http://localhost:3000/accounts/${encodeURIComponent(addressToSearch)}`,
+        { method: "GET", headers }
+      );
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Gagal memuat account.");
+      setAccountData(data);
+    } catch (err) {
+      setError(err.message);
+    }
+    setLoading(false);
+  };
 
-    const addr = address.trim();
-    if (!addr) {
-      setError("Masukkan address account terlebih dahulu.");
-      return;
+  const handleLoadActive = async () => {
+    setError(""); setAccountData(null); setLoading(true);
+    try {
+      const res  = await fetch("http://localhost:3000/accounts/me", {
+        method: "GET", headers
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Gagal muat akun aktif.");
+      setAccountData(data);
+    } catch (err) {
+      setError(err.message);
+    }
+    setLoading(false);
+  };
+
+  const handleCreateAccount = async e => {
+    e.preventDefault();
+    setError(""); setAccountData(null);
+
+    if (!wallet) {
+      return setError("Harap unlock wallet dulu sebelum membuat akun.");
+    }
+    if (!namespace.trim() || !email.trim()) {
+      return setError("Namespace dan email wajib diisi.");
     }
 
     setLoading(true);
     try {
-      // Ambil token JWT dari localStorage (jika ada)
-      const token = localStorage.getItem("authToken");
-      const headers = {
-        "Content-Type": "application/json"
+      const timestamp = Math.floor(Date.now() / 1000);
+      const message   = `account.create:${email}:${timestamp}`;
+      const signature = await wallet.signMessage(message);
+      const address   = wallet.address;
+
+      const payload = {
+        namespace,
+        email,
+        password: "dummy",
+        address,
+        signature,
+        timestamp
       };
-      if (token) {
-        headers["Authorization"] = `Bearer ${token}`;
-      }
-
-      // Panggil GET /accounts/:id
-      const res = await fetch(`http://localhost:3000/accounts/${encodeURIComponent(addr)}`, {
-        method: "GET",
-        headers
+      const res  = await fetch("http://localhost:3000/accounts", {
+        method: "POST",
+        headers,
+        body: JSON.stringify(payload)
       });
-
-      if (res.status === 401) {
-        // Unauthorized: user belum login / token invalid
-        setError("Anda perlu login terlebih dahulu untuk mengakses data account.");
-        setLoading(false);
-        return;
-      }
-
-      if (res.status === 404) {
-        setError("Account tidak ditemukan di backend.");
-        setLoading(false);
-        return;
-      }
-
-      if (!res.ok) {
-        // Kesalahan lain (misal 400, 500)
-        const body = await res.json().catch(() => ({}));
-        setError(body.error || "Terjadi kesalahan saat menghubungi server.");
-        setLoading(false);
-        return;
-      }
-
       const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Gagal membuat akun.");
       setAccountData(data);
     } catch (err) {
-      console.error(err);
-      setError("Gagal memuat data account.");
+      setError(err.message);
     }
     setLoading(false);
   };
 
   return (
-    <div style={{ padding: "24px", maxWidth: "600px", margin: "auto" }}>
-      <h2 style={{ fontSize: "22px", color: "#333333" }}>Cari Account</h2>
-
-      <form onSubmit={handleSearch} style={{ marginTop: "16px", display: "flex", gap: "8px" }}>
+    <div style={{ padding: 24, maxWidth: 720, margin: "auto" }}>
+      <h2>🔍 Cari Account</h2>
+      <form onSubmit={handleSearch} style={{ display: "flex", gap: 8, marginBottom: 16 }}>
         <input
-          type="text"
-          value={address}
-          onChange={(e) => setAddress(e.target.value)}
-          placeholder="Masukkan account address"
-          style={{
-            flex: 1,
-            padding: "8px",
-            borderRadius: "4px",
-            border: "1px solid #CBD5E0",
-            fontSize: "14px",
-          }}
+          value={addressToSearch}
+          onChange={e => setAddressToSearch(e.target.value)}
+          placeholder="Account ID atau address"
+          style={{ flex: 1, padding: 8, borderRadius: 4, border: "1px solid #CBD5E0" }}
         />
-        <button
-          type="submit"
-          disabled={loading}
-          style={{
-            padding: "8px 16px",
-            backgroundColor: "#3182CE",
-            color: "#FFF",
-            border: "none",
-            borderRadius: "4px",
-            cursor: "pointer",
-          }}
-        >
-          {loading ? "Mencari..." : "Cari"}
-        </button>
+        <button disabled={loading}>{loading ? "..." : "Cari"}</button>
       </form>
 
-      {error && (
-        <p style={{ color: "#E53E3E", marginTop: "12px" }}>{error}</p>
+      <button onClick={handleLoadActive} disabled={loading}>
+        🔄 Load Akun Aktif
+      </button>
+
+      <hr style={{ margin: "24px 0" }} />
+
+      {wallet ? (
+        <>
+          <h3>➕ Buat Akun Baru</h3>
+          <form onSubmit={handleCreateAccount} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <input
+              value={namespace}
+              onChange={e => setNamespace(e.target.value)}
+              placeholder="Namespace (e.g. openfeast)"
+            />
+            <input
+              type="email"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              placeholder="Email kontak"
+            />
+            <button disabled={loading}>
+              {loading ? "Membuat..." : "Buat Akun"}
+            </button>
+          </form>
+        </>
+      ) : (
+        <p style={{ color: "#E53E3E", marginTop: 12 }}>
+          ⚠️ Harap unlock wallet dulu untuk membuat akun baru.
+        </p>
       )}
 
+      {error && <p style={{ color: "#E53E3E", marginTop: 12 }}>⚠️ {error}</p>}
+
       {accountData && (
-        <div style={{ marginTop: "24px", backgroundColor: "#F7FAFC", padding: "16px", borderRadius: "4px" }}>
-          <h3 style={{ fontSize: "18px", marginBottom: "8px", color: "#2D3748" }}>Detail Account:</h3>
-          <pre style={{ fontSize: "14px", color: "#2D3748", whiteSpace: "pre-wrap" }}>
+        <div style={{ marginTop: 24, padding: 16, background: "#F7FAFC", borderRadius: 4 }}>
+          <h4>Detail Account</h4>
+          <pre style={{ whiteSpace: "pre-wrap" }}>
             {JSON.stringify(accountData, null, 2)}
           </pre>
         </div>

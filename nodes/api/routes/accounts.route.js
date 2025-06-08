@@ -7,6 +7,7 @@ const authMiddleware = require('../middlewares/auth');
 router.post('/', accountController.createAccount);
 
 // Private routes: Hanya bisa diakses jika sudah login
+router.get('/', authMiddleware, accountController.listMyAccounts);
 router.get('/me', authMiddleware, accountController.getAccountMe);
 router.get('/:id', authMiddleware, accountController.getAccountById);
 

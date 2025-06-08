@@ -3,6 +3,7 @@ import React, { useState, useContext, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../utils/createAuthContext";
 
+
 export default function Unlock() {
   const navigate = useNavigate();
   const { login } = useContext(AuthContext);
@@ -22,12 +23,38 @@ export default function Unlock() {
     e.preventDefault();
     setError("");
     setLoading(true);
+
+    // 1) Ambil raw keystore
+    let raw = localStorage.getItem("encryptedPrivateKey");
+    if (!raw) {
+      setError("‼️ encryptedPrivateKey tidak ditemukan. Silakan daftar ulang.");
+      setLoading(false);
+      return;
+    }
+
+    // 2) Sanitasi key “Crypto” → “crypto” (legacy)
     try {
-      await login(password);
-      navigate("/dashboard");
+      const obj = JSON.parse(raw);
+      if (obj.Crypto && !obj.crypto) {
+        obj.crypto = obj.Crypto;
+        delete obj.Crypto;
+        raw = JSON.stringify(obj);
+      }
     } catch {
+      // jika JSON invalid, biarkan raw apa adanya
+    }
+
+    try {
+
+      // Optional: kalau pakai authToken dari server
+      await login(password, raw); // tetap panggil login jika perlu backend
+
+      navigate("/accounts");
+    } catch (err) {
+      console.error(err);
       setError("Password salah atau dekripsi gagal.");
     }
+
     setLoading(false);
   };
 

@@ -91,6 +91,34 @@ exports.createAccount = async (req, res) => {
 
 };
 
+
+exports.listMyAccounts = async (req, res) => {
+  try {
+    const userAddress = req.address.toLowerCase();
+    // ambil semua state akun
+    const results = await findFromGateway('states', { entityType: 'account' });
+    const accounts = results
+      .map(r => {
+        const state = r.state;
+        const member = (state.users || []).find(u =>
+          u.address.toLowerCase() === userAddress
+        );
+        if (!member) return null;
+        return {
+          accountId: r.refId,    // misal "org:acct1"
+          role: member.group,    // misal "group:acct1:admins"
+          refid: member.refid
+        };
+      })
+      .filter(a => a);
+
+    res.json(accounts);
+  } catch (err) {
+    console.error('Error listing accounts:', err);
+    res.status(500).json({ error: 'Failed to list accounts' });
+  }
+};
+
 exports.getAccountMe = async (req, res) => {
   const accountId = req.accountId;
   try {
