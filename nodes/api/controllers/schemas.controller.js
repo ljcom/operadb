@@ -168,3 +168,46 @@ exports.createSchema = async (req, res) => {
     res.status(500).json({ error: 'Failed to create schema' });
   }
 };
+
+exports.getSchema = async (req, res) => {
+try {
+    const result = await axios.post(`${GATEWAY}/find`, {
+      collection: 'states',
+      query: {
+        entityType: 'schema',
+        account: req.accountId
+      }
+    }, {
+      headers: { Authorization: `Bearer ${SECRET}` }
+    });
+
+    const schemas = result.data[0]?.state?.schemas || [];
+    res.json(schemas);
+  } catch (err) {
+    console.error('Failed to fetch schemas from state:', err.message);
+    res.status(500).json({ error: 'Failed to fetch schemas' });
+  }  
+}
+
+exports.findSchema = async (req, res) => {
+try {
+    const result = await axios.post(`${GATEWAY}/find`, {
+      collection: 'states',
+      query: {
+        entityType: 'schema',
+        account: req.accountId
+      }
+    }, {
+      headers: { Authorization: `Bearer ${SECRET}` }
+    });
+
+    const schemas = result.data[0]?.state?.schemas || [];
+    const found = schemas.find(s => s.schemaId === req.params.schemaId);
+
+    if (!found) return res.status(404).json({ error: 'Schema not found' });
+    res.json(found);
+  } catch (err) {
+    console.error('Failed to fetch schema by name:', err.message);
+    res.status(500).json({ error: 'Failed to fetch schema' });
+  }  
+}

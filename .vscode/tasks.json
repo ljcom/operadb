@@ -1,0 +1,53 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Start All",
+			"dependsOn": [
+				"Mongod",
+				"Gateway",
+				"Worker",
+				"API"
+			],
+			"dependsOrder": "parallel",
+			"problemMatcher": [],
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			}
+		},
+		{
+			"label": "Mongod",
+			"type": "shell",
+			"command": "mongod --dbpath ~/data/db",
+			"problemMatcher": []
+		},
+		{
+			"label": "Gateway",
+			"type": "shell",
+			"command": "node server gateway.js",
+			"problemMatcher": []
+		},
+		{
+			"label": "Worker",
+			"type": "shell",
+			"command": "node server worker.js",
+			"problemMatcher": []
+		},
+		{
+			"label": "API",
+			"type": "shell",
+			"command": "node server api.js",
+			"problemMatcher": []
+		},
+		{
+			"type": "npm",
+			"script": "build",
+			"path": "explorer",
+			"group": "build",
+			"problemMatcher": [],
+			"label": "npm: build - explorer",
+			"detail": "vite build"
+		}
+	]
+}
