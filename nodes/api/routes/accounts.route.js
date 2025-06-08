@@ -8,7 +8,7 @@ router.post('/', accountController.createAccount);
 
 // Private routes: Hanya bisa diakses jika sudah login
 router.get('/', authMiddleware, accountController.listMyAccounts);
-router.get('/me', authMiddleware, accountController.getAccountMe);
+router.post('/me', accountController.getAccountMeBySignature);
 router.get('/:id', authMiddleware, accountController.getAccountById);
 
 module.exports = router;

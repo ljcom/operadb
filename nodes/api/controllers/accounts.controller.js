@@ -1,6 +1,7 @@
 const { ethers } = require('ethers');
 const bcrypt = require('bcrypt');
 const { sendEvent } = require('../utils/eventSender');
+const { findFromGateway } = require('../utils/gatewayQuery');
 const { isValidAddressFormat, isValidIdFormat } = require('../utils/idNaming');
 
 exports.createAccount = async (req, res) => {
@@ -74,7 +75,9 @@ exports.createAccount = async (req, res) => {
               username: 'admin',
               email,
               passwordHash,
-              group: [adminGroupId]
+              group: [adminGroupId],
+              address,       // ← add the PV-key address here
+              accountId 
             }
           }
         ]        
@@ -145,5 +148,58 @@ exports.getAccountById = async (req, res) => {
     res.json(account);
   } catch (err) {
     res.status(500).json({ error: 'Failed to fetch account by id' });
+  }
+};
+
+/**
+ * POST /accounts/me
+ * Body: { signature: string, timestamp: number }
+ * Verifies signature of message `accounts.me:<timestamp>`,
+ * recovers address, then finds all user.entries with that address
+ * and returns their accountIds/refids/roles.
+ */
+exports.getAccountMeBySignature = async (req, res) => {
+  const { signature, timestamp } = req.body;
+  if (!signature || !timestamp) {
+    return res.status(400).json({ error: 'Missing signature or timestamp' });
+  }
+  // 1) Validasi timestamp (5 menit)
+  const now = Math.floor(Date.now() / 1000);
+  if (Math.abs(now - timestamp) > 300) {
+    return res.status(403).json({ error: 'Timestamp too old or too far ahead' });
+  }
+
+  // 2) Recover address
+  const message = `accounts.me:${timestamp}`;
+  let address;
+  try {
+    address = ethers.verifyMessage(message, signature).toLowerCase();
+  } catch (err) {
+    return res.status(401).json({ error: 'Invalid signature' });
+  }
+  if (!isValidAddressFormat(address)) {
+    return res.status(401).json({ error: 'Recovered address invalid' });
+  }
+
+  try {
+    // 3) Cari semua state user di setiap akun
+    const states = await findFromGateway('states', { entityType: 'user' });
+    const accounts = [];
+    for (const s of states) {
+      const u = s.state[s.refId] || {};
+      //const u = users.find(u => u.address.toLowerCase() === address);
+      if (u.address.toLowerCase()=== address) {
+        // s.refId adalah accountRef, misal "org:acct1"
+        accounts.push({
+          accountId: u.accountId,
+          refid: s.refid,
+          groups: u.groups
+        });
+      }
+    }
+    return res.json(accounts);
+  } catch (err) {
+    console.error('Error in getAccountMeBySignature:', err);
+    return res.status(500).json({ error: 'Failed to list accounts for this user' });
   }
 };
