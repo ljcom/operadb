@@ -98,8 +98,8 @@ exports.mintCoin = async (req, res) => {
       refId: coinId
     });
 
-    const coinState = result?.[0];
-    if (!coinState || coinState.creator !== actor) {
+    const coinState = result?.[0].state[coinId];
+    if (!coinState || coinState.creator.toLowerCase() !== actor.toLowerCase()) {
       return res.status(403).json({ error: 'Only coin creator can mint' });
     }
     if (to && !isValidAddressFormat(to)) {
@@ -124,6 +124,7 @@ exports.burnCoin = async (req, res) => {
   try {
     const { coinId, amount } = req.body;
     const actor = req.address;
+    const accountId = req.accountId;
 
     if (!coinId || amount == null) {
       return res.status(400).json({ error: 'Missing coinId or amount' });
@@ -137,7 +138,14 @@ exports.burnCoin = async (req, res) => {
       refId: coinId
     });
 
-    const balance = result?.[0]?.holders?.[actor] || 0;
+    const rawBalances=result.filter(e=>e.refId=coinId)[0].state[coinId].balances;
+    //const rawBalances = result?.[0]?.state[result?.[0].refId].balances || {};
+    const balances = Object.entries(rawBalances).reduce((map, [addr, bal]) => {
+      map[addr.toLowerCase()] = bal;
+      return map;
+    }, {});
+
+    const balance = balances[actor.toLowerCase()] || 0;
     if (balance < amount) {
       return res.status(400).json({ error: 'Insufficient balance' });
     }
@@ -213,6 +221,7 @@ exports.approveSpender = async (req, res) => {
   try {
     const { coinId, spender, amount } = req.body;
     const actor = req.address;
+    const accountId = req.accountId;
 
     if (!coinId || !spender || amount == null) {
       return res.status(400).json({ error: 'Missing coinId, spender, or amount' });
@@ -232,7 +241,7 @@ exports.approveSpender = async (req, res) => {
       type: 'coin.approve',
       data: { coinId, owner: actor, spender, amount },
       actor,
-      account: null
+      account: accountId
     });
 
     res.status(200).json({ message: 'Spender approved', event: event.data });
@@ -247,6 +256,7 @@ exports.transferFromCoin = async (req, res) => {
   try {
     const { coinId, from, to, amount } = req.body;
     const actor = req.address; // spender
+    const accountId = req.accountId;
 
     if (!coinId || !from || !to || amount == null) {
       return res.status(400).json({ error: 'Missing coinId, from, to, or amount' });
@@ -277,7 +287,7 @@ exports.transferFromCoin = async (req, res) => {
       type: 'coin.transferFrom',
       data: { coinId, from, to, amount },
       actor,
-      account: null
+      account: accountId
     });
 
     res.status(200).json({ message: 'TransferFrom successful', event: event.data });

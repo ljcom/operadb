@@ -70,7 +70,11 @@ async function signMe() {
       { headers }
     );
     console.log('✅ Transfer success');
+  } catch (err) {
+    console.error('❌ Error:', err.response?.data || err.message);
+  }
 
+  try {
     // 3. USER1 mint 200 lagi ke dirinya
     console.log('\n💰 USER1 mint 200...');
     ({ timestamp, signature } = await signMe());
@@ -81,7 +85,11 @@ async function signMe() {
       { headers }
     );
     console.log('✅ Mint success');
+  } catch (err) {
+    console.error('❌ Error:', err.response?.data || err.message);
+  }
 
+  try {
     // 4. USER2 burn 100 dari miliknya
     console.log('\n🔥 USER2 burn 100...');
     ({ timestamp, signature } = await signMe());
