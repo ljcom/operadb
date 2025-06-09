@@ -5,9 +5,8 @@ const { generateId, parseId, generateScopedId, isValidAddressFormat } = require(
 // 1. Mint asset
 exports.mintAsset = async (req, res) => {
   try {
-    const { to, qty, schemaId } = req.body;
-    const metadata = req.body;
-    const actor = req.user.id;
+    const { assetId, to, qty, schemaId } = req.body;
+    const actor = req.address;
     const accountId = req.accountId;
 
     // Validasi awal wajib
@@ -32,13 +31,13 @@ exports.mintAsset = async (req, res) => {
     // Validasi field metadata terhadap schema.fields
     const fields = schema.state[schemaId1].fields || [];
     for (const field of fields) {
-      if (field.required && (metadata?.[field.name] === undefined || metadata[field.name] === null)) {
+      if (field.required && (field.name === undefined || field.name === null)) {
         return res.status(400).json({ error: `Missing required field in metadata: ${field.name}` });
       }
     }
 
     // Generate assetId
-    const assetId = await generateScopedId('obj', accountId.split(':')[1], 'asset', type, metadata?.name || actor);
+    const assetId1 = await generateScopedId('obj', accountId.split(':')[1], 'asset', type, assetId);
 
     const fullEntityType = schema.state[schemaId1]?.entityType;
     if (!['asset.unique', 'asset.commodity', 'actor.people'].includes(fullEntityType)) {
@@ -85,12 +84,11 @@ exports.mintAsset = async (req, res) => {
     const result = await sendEvent({
       type: 'asset.mint',
       data: {
-        assetId,
+        assetId:assetId1,
         schemaId,
         type,
         qty: qty1,
-        to,
-        metadata
+        to
       },
       actor,
       account: accountId
@@ -108,7 +106,7 @@ exports.mintAsset = async (req, res) => {
 exports.burnAsset = async (req, res) => {
   try {
     const { assetId, qty } = req.body;
-    const actor = req.user.id;
+    const actor = req.address;
 
     if (!assetId) return res.status(400).json({ error: 'Missing assetId' });
 
@@ -153,7 +151,7 @@ exports.burnAsset = async (req, res) => {
 exports.transferAsset = async (req, res) => {
   try {
     const { assetId, to, qty } = req.body;
-    const actor = req.user.id;
+    const actor = req.address;
 
     if (!assetId || !to) return res.status(400).json({ error: 'Missing assetId or to' });
 

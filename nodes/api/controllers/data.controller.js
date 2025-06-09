@@ -1,10 +1,10 @@
 const { sendEvent } = require('../utils/eventSender');
 const { findFromGateway } = require('../utils/gatewayQuery');
-const { isValidAddressFormat } = require('../utils/idNaming');
+const { isValidAddressFormat, generateScopedId } = require('../utils/idNaming');
 
 exports.issueData = async (req, res) => {
   try {
-    const actor = req.user.id;
+    const actor = req.address;
     const accountId = req.accountId;
     const { assetId, to } = req.body;
 
@@ -13,9 +13,11 @@ exports.issueData = async (req, res) => {
     }
 
     // Ambil asset dari gateway
+    // 1) Ambil asset dari gateway
     const assets = await findFromGateway('states', {
       entityType: 'asset',
-      entityId: assetId
+      refId: assetId,
+      account: accountId
     });
     const asset = assets?.[0];
 
@@ -23,15 +25,28 @@ exports.issueData = async (req, res) => {
       return res.status(404).json({ error: 'Asset not found' });
     }
 
-    if (asset.asset_mode !== 'actor') {
-      return res.status(400).json({ error: 'Only actor-type asset can be issued as data' });
+    // 2) Ambil schema untuk asset ini
+    const schemaId1 = await generateScopedId('mod', accountId.split(':')[1], 'schema', asset.refId.split(':')[2]);
+    const schemaList = await findFromGateway('states', {
+      entityType: 'schema',
+      refId: schemaId1,
+      account: accountId
+    });
+    const schema = schemaList?.[0];
+    if (!schema) {
+      return res.status(500).json({ error: 'Schema not found for this asset' });
+    }
+
+    // 3) Periksa entityType di schema
+    if (schema.state[schemaId1].entityType !== 'asset.unique') {
+      return res.status(400).json({ error: 'Only unique-type assets can be issued as data' });
     }
 
     // Cek apakah sudah pernah di-issue
     const dataId = 'data:' + assetId.replace(/^obj:/, '') + ':' + to;
     const existing = await findFromGateway('states', {
       entityType: 'data',
-      entityId: dataId
+      refId: dataId
     });
     if (existing?.length) {
       return res.status(409).json({ error: 'Data already issued to this address' });
@@ -91,7 +106,7 @@ exports.getOwnedData = async (req, res) => {
 
 exports.revokeData = async (req, res) => {
   try {
-    const actor = req.user.id;
+    const actor = req.address;
     const accountId = req.accountId;
     const { dataId, reason } = req.body;
 

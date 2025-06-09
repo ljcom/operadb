@@ -14,13 +14,14 @@ exports.replay = function (events) {
             allowance: {},
             totalSupply: data.totalSupply || 0,
             coinId: data.coinId,
-            creator: data.creator || actor,
+            creator: (data.creator || actor).toLowerCase(),
             entityType: 'coin'
           };
 
           // Optional: langsung isi balance jika `to` tersedia
           if (data.to && data.totalSupply > 0) {
-            stateMap[currentId].balances[data.to] = data.totalSupply;
+            const toAddr = data.to.toLowerCase();
+            stateMap[currentId].balances[toAddr] = data.totalSupply;
           }
         }
         break;
@@ -37,43 +38,46 @@ exports.replay = function (events) {
         const s = stateMap[id];
         switch (type) {
           case 'coin.mint': {
-            const { to, amount } = data;
-            s.balances[to] = (s.balances[to] || 0) + amount;
-            s.totalSupply += amount;
+            const toAddr = data.to.toLowerCase();
+            s.balances[toAddr] = (s.balances[toAddr] || 0) + data.amount;
+            s.totalSupply += data.amount;
             break;
           }
           case 'coin.burn': {
-            const { from, amount } = data;
-            if ((s.balances[from] || 0) >= amount) {
-              s.balances[from] -= amount;
-              s.totalSupply -= amount;
+            const fromAddr = data.from.toLowerCase();
+            if ((s.balances[fromAddr] || 0) >= data.amount) {
+              s.balances[fromAddr] -= data.amount;
+              s.totalSupply -= data.amount;
             }
             break;
           }
           case 'coin.transfer': {
-            const { from, to, amount } = data;
-            if ((s.balances[from] || 0) >= amount) {
-              s.balances[from] -= amount;
-              s.balances[to] = (s.balances[to] || 0) + amount;
+            const fromAddr = data.from.toLowerCase();
+            const toAddr   = data.to.toLowerCase();
+            if ((s.balances[fromAddr] || 0) >= data.amount) {
+              s.balances[fromAddr] -= data.amount;
+              s.balances[toAddr] = (s.balances[toAddr] || 0) + data.amount;
             }
             break;
           }
           case 'coin.approve': {
-            const { owner, spender, amount } = data;
-            s.allowance[owner] = s.allowance[owner] || {};
-            s.allowance[owner][spender] = amount;
+            const ownerAddr   = data.owner.toLowerCase();
+            const spenderAddr = data.spender.toLowerCase();
+            s.allowance[ownerAddr] = s.allowance[ownerAddr] || {};
+            s.allowance[ownerAddr][spenderAddr] = data.amount;
             break;
           }
           case 'coin.transferFrom': {
-            const { from, to, amount } = data;
-            const spender = actor;
-            const allowed = s.allowance[from]?.[spender] || 0;
-            const balance = s.balances[from] || 0;
+            const fromAddr    = data.from.toLowerCase();
+            const toAddr      = data.to.toLowerCase();
+            const spenderAddr = actor.toLowerCase();
+            const allowed     = s.allowance[fromAddr]?.[spenderAddr] || 0;
+            const balance     = s.balances[fromAddr] || 0;
 
-            if (allowed >= amount && balance >= amount) {
-              s.allowance[from][spender] -= amount;
-              s.balances[from] -= amount;
-              s.balances[to] = (s.balances[to] || 0) + amount;
+            if (allowed >= data.amount && balance >= data.amount) {
+              s.allowance[fromAddr][spenderAddr] -= data.amount;
+              s.balances[fromAddr] -= data.amount;
+              s.balances[toAddr] = (s.balances[toAddr] || 0) + data.amount;
             }
             break;
           }

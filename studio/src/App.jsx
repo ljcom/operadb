@@ -12,6 +12,7 @@ import StudioLayout from "./components/StudioLayout";
 import Dashboard from "./pages/Dashboard";
 import AccountsPage from "./pages/Accounts";
 import SchemasPage from "./pages/Schemas";
+import NewSchemaPage from './pages/NewSchema';
 import DataExplorerPage from "./pages/DataExplorer";
 import SettingsPage from "./pages/Settings";
 
@@ -52,6 +53,7 @@ export default function App() {
 
           {/* "/dashboard/schemas" → SchemasPage.jsx */}
           <Route path="schemas" element={<SchemasPage />} />
+          <Route path="schemas/new" element={<NewSchemaPage />} />
 
           {/* "/dashboard/data-explorer" → DataExplorerPage.jsx */}
           <Route path="data-explorer" element={<DataExplorerPage />} />

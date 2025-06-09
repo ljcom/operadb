@@ -1,14 +1,19 @@
 require('dotenv').config();
 const axios = require('axios');
+const { ethers } = require('ethers');
 
-const endpoint = process.env.API_URL;
-const token = process.env.USER1_TOKEN;
-const accountId = process.env.ACCOUNT_ID;
+const API_URL     = process.env.API_URL;      // e.g. http://localhost:3000
+const ACCOUNT_ID  = process.env.ACCOUNT_ID;   // accountId untuk accountResolver
+const PRIVATE_KEY = process.env.USER1_PRIVATE_KEY;  // private key pemilik account
 
-const headers = {
-  Authorization: `Bearer ${token}`,
-  'Content-Type': 'application/json'
-};
+const wallet = new ethers.Wallet(PRIVATE_KEY);
+
+async function signMe() {
+  const timestamp = Math.floor(Date.now() / 1000);
+  const message   = `accounts.me:${timestamp}`;
+  const signature = await wallet.signMessage(message);
+  return { timestamp, signature };
+}
 
 // Lengkapi formatType dan description di setiap schema!
 const schemas = [
@@ -89,15 +94,32 @@ const schemas = [
   }
 ];
 
+
 (async () => {
+  // 1) Generate signature untuk semua request
+  const { timestamp, signature } = await signMe();
+
+  // 2) Siapkan headers signature
+  const headers = {
+    'Content-Type': 'application/json',
+    'x-timestamp':   timestamp,
+    'x-signature':   signature
+  };
+
+  // 3) Loop dan kirim masing‐masing schema
   for (const schema of schemas) {
     try {
-      // Kirim sebagai body + query param account
-      const payload = { ...schema };
-      const res = await axios.post(`${endpoint}/schemas?account=${accountId}`, payload, { headers });
+      const res = await axios.post(
+        `${API_URL}/schemas?account=${ACCOUNT_ID}`,
+        schema,
+        { headers }
+      );
       console.log(`✅ Created schema: ${schema.schemaId}`, res.data);
     } catch (err) {
-      console.error(`❌ Failed to create schema: ${schema.schemaId}`, err.response?.data || err.message);
+      console.error(
+        `❌ Failed to create schema: ${schema.schemaId}`,
+        err.response?.data || err.message
+      );
     }
   }
 })();

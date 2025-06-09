@@ -5,7 +5,7 @@ const { generateScopedId, isValidAddressFormat } = require('../utils/idNaming');
 
 exports.createContract = async (req, res) => {
   try {
-    const actor = req.user.id;
+    const actor = req.address;
     const accountId = req.accountId;
     const {
       schema_id,

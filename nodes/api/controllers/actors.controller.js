@@ -5,15 +5,44 @@ const { generateScopedId, isValidAddressFormat } = require('../utils/idNaming');
 // 1. Register actor
 exports.registerActor = async (req, res) => {
   try {
-    const { actorType, role, represented, pic, address } = req.body;
-    const actor = req.user.id;
+    const { actorId, actorType, role, represented, pic, address, schemaId } = req.body;
+    const actor = req.address;
     const accountId = req.accountId;
 
-    if (!actorType || !role || !represented) {
-      return res.status(400).json({ error: 'Missing required field: actorType, role, or represented' });
+    if (!actorType || !actorId || !schemaId) {
+      return res.status(400).json({ error: 'Missing required field in schemaId, actorId, actorType (corp, user)' });
     }
 
-    const actorId = await generateScopedId('act', accountId.split(':')[1], role, represented);
+    if (actorType=='corp' &&!represented) {
+      return res.status(400).json({ error: 'Missing required field in represented' });
+    }
+
+    const schemaId1 = await generateScopedId('mod', accountId.split(':')[1], 'schema', schemaId);
+    const schemaRes = await findFromGateway('states', {
+      entityType: 'schema',
+      refId: schemaId1,
+      account: accountId
+    });
+    const schema = schemaRes?.[0];
+    if (!schema) {
+      return res.status(400).json({ error: 'Invalid schemaId or not for actor' });
+    }
+    const type = schemaId1.split(':')[2];
+
+    const fields = schema.state[schemaId1].fields || [];
+    for (const field of fields) {
+      if (field.required && (field.name === undefined || field.name === null)) {
+        return res.status(400).json({ error: `Missing required field in metadata: ${field.name}` });
+      }
+    }
+
+    // Generate assetId
+    const actorId1 = await generateScopedId('act', accountId.split(':')[1], 'actor', type, actorId);
+
+    const fullEntityType = schema.state[schemaId1]?.entityType;
+    if (!['actor.corp', 'actor.people'].includes(fullEntityType)) {
+      return res.status(400).json({ error: 'Invalid entityType for minting' });
+    }
 
     if (address && !isValidAddressFormat(address)) {
       return res.status(400).json({ error: 'Invalid Public address format' });
@@ -22,10 +51,12 @@ exports.registerActor = async (req, res) => {
     const result = await sendEvent({
       type: 'actor.register',
       data: {
-        actorId,
+        actorId1,
         actorType,       // "corp" or "user"
         role,            // "customer", "supplier", etc
         represented,     // e.g., "org:corporateX"
+        schemaId,
+        type,
         address,
         pic: pic || [],
         status: 'pending',
@@ -83,7 +114,7 @@ exports.getActor = async (req, res) => {
 exports.approveActor = async (req, res) => {
   try {
     const { actorId } = req.body;
-    const actor = req.user.id;
+    const actor = req.address;
 
     const state = await findFromGateway('states', {
       entityType: 'actor',
@@ -116,7 +147,7 @@ exports.approveActor = async (req, res) => {
 exports.updateActor = async (req, res) => {
   try {
     const { actorId, pic, address, note, label } = req.body;
-    const actor = req.user.id;
+    const actor = req.address;
     const accountId = req.accountId;
 
     if (!actorId) {

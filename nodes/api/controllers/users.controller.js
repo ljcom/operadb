@@ -47,15 +47,41 @@ async function createUserData(body, actor, accountId, req, res) {
 
 exports.createUser = async (req, res) => {
   try {
-    const actor = req.user.id;
+    // Gunakan req.address (Ethereum address) sebagai actor
+    const actor = req.address;
     const accountId = req.accountId;
-    const r = await createUserData(req.body, actor, accountId, req, res);
 
-    if (r.error) return res.status(r.status).json({ error: r.error });
-    res.status(r.status).json({ message: r.message, event: r.event });
+    // Ambil data dari body (sudah termasuk timestamp & signature)
+    const {
+      username,
+      email,
+      password,
+      group,
+      address: userAddress,
+      timestamp,
+      signature
+    } = req.body;
+
+    // Panggil service untuk membuat user
+    const result = await createUserData(
+      { username, email, password, group, address: userAddress, timestamp, signature },
+      actor,
+      accountId,
+      req,
+      res
+    );
+
+    if (result.error) {
+      return res.status(result.status).json({ error: result.error });
+    }
+
+    return res.status(result.status).json({
+      message: result.message,
+      event: result.event
+    });
   } catch (err) {
     console.error('Create User Error:', err.message);
-    res.status(500).json({ error: 'Failed to create user' });
+    return res.status(500).json({ error: 'Failed to create user' });
   }
 };
 

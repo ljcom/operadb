@@ -2,12 +2,12 @@ const express = require('express');
 const router = express.Router();
 const controller = require('../controllers/actors.controller');
 const accountResolver = require('../middlewares/accountResolver');
-const auth = require('../middlewares/auth');
+const authMiddleware  = require('../middlewares/auth');
 
-router.post('/register', accountResolver, controller.registerActor);
+router.post('/register', [ authMiddleware, accountResolver ], controller.registerActor);
 router.get('/list', controller.listActors);
 router.get('/:id', controller.getActor);
-router.post('/approve', controller.approveActor);
-router.post('/update', controller.updateActor);
+router.post('/approve', [ authMiddleware, accountResolver ], controller.approveActor);
+router.post('/update', [ authMiddleware, accountResolver ], controller.updateActor);
 
 module.exports = router;

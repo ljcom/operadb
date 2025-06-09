@@ -48,10 +48,10 @@ try {
 }
 exports.createGroup = async (req, res) => {
   try {
-    const actor = req.user.id;
+    const actor = req.address;
     const accountId = req.accountId;
-    const r = createGroupData(req.body, actor, accountId, req, res);
-    res.status(r.status).json(message, error);
+    const r = await createGroupData(req.body, actor, accountId, req, res);
+    res.status(r.status).json(r?.message, r?.error);
 
   } catch (err) {
     console.error('Create Group Error:', err.message);
@@ -63,7 +63,7 @@ exports.createGroup = async (req, res) => {
 exports.assignGroup = async (req, res) => {
   try {
     const { group, userIds = [], userId } = req.body;
-    const actor = req.user.id;
+    const actor = req.address;
     const accountId = req.accountId;
 
     const groupId = group.startsWith('group:') ? group : `group:${accountId}:usergroup:${group}`;
@@ -98,7 +98,7 @@ exports.assignGroup = async (req, res) => {
 exports.revokeGroup = async (req, res) => {
   try {
     const { group, userIds = [], userId } = req.body;
-    const actor = req.user.id;
+    const actor = req.address;
     const accountId = req.accountId;
 
     const groupId = group.startsWith('group:') ? group : `group:${accountId}:usergroup:${group}`;
@@ -135,7 +135,7 @@ exports.addRole = async (req, res) => {
   await sendEvent({
     type: 'group.role.add',
     data: { groupId, role },
-    actor: req.address,
+    actor: req.address.toLowerCase(),
     account: req.account
   });
 

@@ -97,7 +97,7 @@ exports.createAccount = async (req, res) => {
 
 exports.listMyAccounts = async (req, res) => {
   try {
-    const userAddress = req.address.toLowerCase();
+    const userAddress = req.address;
     // ambil semua state akun
     const results = await findFromGateway('states', { entityType: 'account' });
     const accounts = results

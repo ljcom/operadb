@@ -1,9 +1,9 @@
 node 0cleanup
 node 2createaccount
 
-node 3login
+node 3createUser
 node 3walletlogin
-node 3creategroup
+node 3createGroup
 
 node 4createschema
 

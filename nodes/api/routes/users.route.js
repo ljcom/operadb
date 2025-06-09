@@ -1,14 +1,28 @@
 const express = require('express');
 const router = express.Router();
-const userController = require('../controllers/users.controller');
+const controller = require('../controllers/users.controller');
+const authMiddleware = require('../middlewares/auth');
 const accountResolver = require('../middlewares/accountResolver');
-const { findFromGateway } = require('../utils/gatewayQuery');
 
-// CREATE user via event
-router.post('/', accountResolver, userController.createUser);
+// Create user (signature-based auth + accountResolver)
+router.post(
+    '/',
+    [authMiddleware, accountResolver],
+    controller.createUser
+);
 
-// GET all users (from state)
-router.get('/', userController.getUser);
-router.post('/invite', accountResolver, userController.inviteUser)
-router.get('/byname/:username', userController.findUser);
+// Get all users
+router.get(
+    '/',
+    [authMiddleware, accountResolver],
+    controller.getUser
+);
+
+// Find by username
+router.get(
+    '/byname/:username',
+    [authMiddleware, accountResolver],
+    controller.findUser
+);
+
 module.exports = router;

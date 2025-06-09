@@ -6,8 +6,26 @@ const { generateScopedId, validateId, isValidAddressFormat } = require('../utils
 exports.createCoin = async (req, res) => {
   try {
     const { symbol, decimals = 0, totalSupply, description, to } = req.body;
-    const actor = req.user.id;
+    const actor = req.address;
     const accountId = req.accountId;
+
+    // 1) Validasi required fields
+    if (!symbol || !totalSupply) {
+      return res.status(400).json({ error: 'Missing symbol or totalSupply' });
+    }
+    const coinId = await generateScopedId('coin', accountId.split(':')[1], 'coin', 
+      symbol.toLowerCase(), description || '');
+
+    // 2) Cek uniqueness symbol per account
+    const allCoins = await findFromGateway('states', {
+      entityType: 'coin',
+      account: accountId
+    });
+    if (allCoins.some(c => c.refId.toLowerCase() === coinId.toLowerCase())) {
+      return res
+        .status(409)
+        .json({ error: `Coin with symbol "${symbol}" already exists in this account` });
+    }
 
     let recipient = to;
     if (!recipient) {
@@ -23,7 +41,6 @@ exports.createCoin = async (req, res) => {
       recipient = accState[0].state.address;
     }
 
-    const coinId = await generateScopedId('coin', accountId.split(':')[1], 'coin', symbol.toLowerCase(), description || '');
 
     //const isValid = await validateId(actor);
     //if (!isValid) return res.status(400).json({ error: 'Invalid creator ID' });
@@ -57,7 +74,8 @@ exports.createCoin = async (req, res) => {
 exports.mintCoin = async (req, res) => {
   try {
     const { coinId, to, amount } = req.body;
-    const actor = req.user.id;
+    const actor = req.address;
+    const accountId = req.accountId;
 
     if (!coinId || !to || amount == null) {
       return res.status(400).json({ error: 'Missing coinId, to, or amount' });
@@ -69,7 +87,7 @@ exports.mintCoin = async (req, res) => {
 
     const [coinValid, toValid] = await Promise.all([
       validateId(coinId),
-      validateId(to)
+      isValidAddressFormat(to)
     ]);
 
     if (!coinValid) return res.status(400).json({ error: 'Invalid coin ID' });
@@ -77,7 +95,7 @@ exports.mintCoin = async (req, res) => {
 
     const result = await findFromGateway('states', {
       entityType: 'coin',
-      entityId: coinId
+      refId: coinId
     });
 
     const coinState = result?.[0];
@@ -91,7 +109,7 @@ exports.mintCoin = async (req, res) => {
       type: 'coin.mint',
       data: { coinId, to, amount },
       actor,
-      account: null
+      account: accountId
     });
 
     res.status(200).json({ message: 'Minted successfully', event: event.data });
@@ -105,7 +123,7 @@ exports.mintCoin = async (req, res) => {
 exports.burnCoin = async (req, res) => {
   try {
     const { coinId, amount } = req.body;
-    const actor = req.user.id;
+    const actor = req.address;
 
     if (!coinId || amount == null) {
       return res.status(400).json({ error: 'Missing coinId or amount' });
@@ -116,7 +134,7 @@ exports.burnCoin = async (req, res) => {
 
     const result = await findFromGateway('states', {
       entityType: 'coin',
-      entityId: coinId
+      refId: coinId
     });
 
     const balance = result?.[0]?.holders?.[actor] || 0;
@@ -142,7 +160,8 @@ exports.burnCoin = async (req, res) => {
 exports.transferCoin = async (req, res) => {
   try {
     const { coinId, to, amount } = req.body;
-    const actor = req.user.id;
+    const actor = req.address;
+    const accountId = req.accountId;
 
     if (!coinId || !to || amount == null) {
       return res.status(400).json({ error: 'Missing coinId, to, or amount' });
@@ -150,7 +169,7 @@ exports.transferCoin = async (req, res) => {
 
     const [coinValid, toValid] = await Promise.all([
       validateId(coinId),
-      validateId(to)
+      isValidAddressFormat(to)
     ]);
 
     if (!coinValid) return res.status(400).json({ error: 'Invalid coin ID' });
@@ -158,10 +177,17 @@ exports.transferCoin = async (req, res) => {
 
     const result = await findFromGateway('states', {
       entityType: 'coin',
-      entityId: coinId
+      refId: coinId
     });
+    const rawBalances=result.filter(e=>e.refId=coinId)[0].state[coinId].balances;
+    //const rawBalances = result?.[0]?.state[result?.[0].refId].balances || {};
+    const balances = Object.entries(rawBalances).reduce((map, [addr, bal]) => {
+      map[addr.toLowerCase()] = bal;
+      return map;
+    }, {});
 
-    const balance = result?.[0]?.holders?.[actor] || 0;
+    const balance = balances[actor.toLowerCase()] || 0;
+
     if (balance < amount) {
       return res.status(400).json({ error: 'Insufficient balance' });
     }
@@ -172,7 +198,7 @@ exports.transferCoin = async (req, res) => {
       type: 'coin.transfer',
       data: { coinId, from: actor, to, amount },
       actor,
-      account: null
+      account: accountId 
     });
 
     res.status(200).json({ message: 'Transferred', event: event.data });
@@ -186,7 +212,7 @@ exports.transferCoin = async (req, res) => {
 exports.approveSpender = async (req, res) => {
   try {
     const { coinId, spender, amount } = req.body;
-    const actor = req.user.id;
+    const actor = req.address;
 
     if (!coinId || !spender || amount == null) {
       return res.status(400).json({ error: 'Missing coinId, spender, or amount' });
@@ -194,7 +220,7 @@ exports.approveSpender = async (req, res) => {
 
     const [coinValid, spenderValid] = await Promise.all([
       validateId(coinId),
-      validateId(spender)
+      isValidAddressFormat(spender)
     ]);
 
     if (!coinValid) return res.status(400).json({ error: 'Invalid coin ID' });
@@ -220,7 +246,7 @@ exports.approveSpender = async (req, res) => {
 exports.transferFromCoin = async (req, res) => {
   try {
     const { coinId, from, to, amount } = req.body;
-    const actor = req.user.id; // spender
+    const actor = req.address; // spender
 
     if (!coinId || !from || !to || amount == null) {
       return res.status(400).json({ error: 'Missing coinId, from, to, or amount' });
@@ -228,8 +254,8 @@ exports.transferFromCoin = async (req, res) => {
 
     const [coinValid, fromValid, toValid] = await Promise.all([
       validateId(coinId),
-      validateId(from),
-      validateId(to)
+      isValidAddressFormat(from),
+      isValidAddressFormat(to)
     ]);
 
     if (!coinValid) return res.status(400).json({ error: 'Invalid coin ID' });
@@ -237,7 +263,7 @@ exports.transferFromCoin = async (req, res) => {
 
     const result = await findFromGateway('states', {
       entityType: 'coin',
-      entityId: coinId
+      refId: coinId
     });
 
     const allowance = result?.[0]?.allowance?.[from]?.[actor] || 0;
@@ -273,7 +299,7 @@ exports.getAllowance = async (req, res) => {
 
     const result = await findFromGateway('states', {
       entityType: 'coin',
-      entityId: coinId
+      refId: coinId
     });
 
     const allowance = result?.[0]?.allowance?.[owner]?.[spender] || 0;
@@ -291,7 +317,7 @@ exports.getCoinMetadata = async (req, res) => {
 
     const result = await findFromGateway('states', {
       entityType: 'coin',
-      entityId: id
+      refId: id
     });
 
     const coin = result?.[0];

@@ -59,13 +59,15 @@ const defaultFieldsMap = {
 
 exports.createSchema = async (req, res) => {
   try {
-    const { schemaId, description, fields, reducerCode, entityType,
+    const { schemaId, description, 
+      fields: userFields = [],
+      reducerCode, entityType,
       version, workflow } = req.body;
 
     const accountId = req.accountId;
-    const actor = req.user.id;
+    const actor = req.address;
 
-    if (!fields || !entityType || !version || !reducerCode) {
+    if (!schemaId || !entityType || !version || !reducerCode) {
       return res.status(400).json({ error: 'Missing required fields' });
     }
     // validasi entityType
@@ -75,49 +77,34 @@ exports.createSchema = async (req, res) => {
 
     if (!isValidIdFormat(schemaId)) {
       return res.status(400).json({ error: 'Invalid SchemaId format (3-16 lowercase chars)' });
-    }
-    //const schemaId1 = `mod:${accountId.split(':')[1]}:${schemaId}`;
-    const schemaId1 = await generateScopedId('mod', accountId.split(':')[1], 'schema', schemaId);
+    }    
+    
+    const mandatory = defaultFieldsMap[entityType];
+    const optional  = userFields.filter(f => !mandatory.some(def => def.name === f.name));
 
-    // Setelah generate schemaId1
-    const existing = await findFromGateway('states', {
-      entityType: 'schema',
-      refId: schemaId1
-    });
-    if (existing && existing.length > 0) {
-      return res.status(409).json({ error: `Schema ${schemaId} already exists` });
-    }
 
-    if (defaultFieldsMap[entityType]) {
-      const fieldMap = Object.fromEntries(fields.map(f => [f.name, f]));
-
-      for (const def of defaultFieldsMap[entityType]) {
-        const match = fieldMap[def.name];
-
-        if (!match) {
-          return res.status(400).json({
-            error: `Missing required field for ${entityType}: ${def.name}`
-          });
-        }
-
-        if (typeof match.type !== 'string') {
-          return res.status(400).json({
-            error: `Field '${def.name}' missing or invalid 'type'`
-          });
-        }
-
-        const typeMatch = (
-          def.type === match.type ||
-          (def.type === 'address' && match.type === 'string') // fallback
-        );
-
-        if (!typeMatch) {
-          return res.status(400).json({
-            error: `Incorrect type for field '${def.name}'. Expected: ${def.type}, got: ${match.type}`
-          });
-        }
+    const seen = new Set();
+    for (const f of optional) {
+      if (!f.name || typeof f.name !== 'string') {
+        return res
+          .status(400)
+          .json({ error: `Optional field missing valid name` });
       }
+      if (!f.type || typeof f.type !== 'string') {
+        return res
+          .status(400)
+          .json({ error: `Optional field '${f.name}' missing/invalid type` });
+      }
+      if (seen.has(f.name)) {
+        return res
+          .status(400)
+          .json({ error: `Duplicate optional field name: ${f.name}` });
+      }
+      seen.add(f.name);
     }
+
+    // 4) Gabungkan
+    const finalFields = [...mandatory, ...optional];
 
     if (workflow) {
       for (const [i, step] of workflow.entries()) {
@@ -139,21 +126,27 @@ exports.createSchema = async (req, res) => {
       }
     }
 
-    const fieldNames = new Set();
-    for (const field of fields) {
-      if (fieldNames.has(field.name)) {
-        return res.status(400).json({ error: `Duplicate field name: ${field.name}` });
-      }
-      fieldNames.add(field.name);
+    const schemaScoped = await generateScopedId(
+      'mod',
+      accountId.split(':')[1],
+      'schema',
+      schemaId
+    );
+    const exists = await findFromGateway('states', {
+      entityType: 'schema',
+      refId: schemaScoped
+    });
+    if (exists.length) {
+      return res.status(409).json({ error: `Schema ${schemaId} already exists` });
     }
 
     const result = await sendEvent({
       type: 'schema.create',
       data: {
-        schemaId: schemaId1,
+        schemaId: schemaScoped,
         entityType,
         description,
-        fields,
+        fields: finalFields,
         reducerCode,
         version,
         workflow: workflow || []
