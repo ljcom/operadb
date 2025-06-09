@@ -152,9 +152,9 @@ exports.burnCoin = async (req, res) => {
 
     const event = await sendEvent({
       type: 'coin.burn',
-      data: { coinId, amount },
+      data: { coinId, amount, from: actor },
       actor,
-      account: null
+      account: accountId
     });
 
     res.status(200).json({ message: 'Burned', event: event.data });
